@@ -33,5 +33,6 @@ def power(a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
 
 if __name__ == "__main__":
     print("Starting Calculator Server on port 9104...")
+    # mcp.run(port=9104)
     mcp.run(transport="sse", host="0.0.0.0", port=9104)
 

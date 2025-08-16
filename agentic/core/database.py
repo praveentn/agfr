@@ -113,24 +113,6 @@ class DatabaseManager:
                 "success": False,
                 "error": str(e)
             }
-    
-    def log_execution(self, trace_id: str, node_id: str, agent: str, tool: str, 
-                     success: bool, started_at: float, finished_at: float, 
-                     data: Any = None, error: str = None):
-        """Log execution step to database"""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO execution_logs 
-                    (trace_id, node_id, agent, tool, success, started_at, finished_at, data, error)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (trace_id, node_id, agent, tool, success, started_at, finished_at, 
-                     str(data) if data else None, error))
-                conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to log execution: {e}")
 
 # Global database manager
 db_manager = DatabaseManager()
-

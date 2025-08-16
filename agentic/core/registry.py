@@ -25,7 +25,7 @@ class Registry:
         self._load_prompts()
     
     def _load_agents(self):
-        """Load agent specifications from YAML files"""
+        """Load agent specifications from YAML files (agents directory only)"""
         agents_dir = Path(settings.agents_dir)
         if not agents_dir.exists():
             agents_dir.mkdir(parents=True, exist_ok=True)
@@ -35,6 +35,17 @@ class Registry:
             try:
                 with open(file_path, 'r') as f:
                     data = yaml.safe_load(f)
+                    
+                    # Only load files that have required agent fields
+                    if 'name' not in data or 'endpoint' not in data:
+                        logger.debug(f"Skipping non-agent file: {file_path}")
+                        continue
+                    
+                    # Skip workflow files that might be in wrong directory
+                    if 'id' in data and 'plan' in data:
+                        logger.warning(f"Workflow file found in agents directory, please move to workflows/: {file_path}")
+                        continue
+                    
                     agent = AgentSpec(**data)
                     self.agents[agent.name] = agent
                     logger.info(f"Loaded agent: {agent.name}")
@@ -42,7 +53,7 @@ class Registry:
                 logger.error(f"Failed to load agent from {file_path}: {e}")
     
     def _load_workflows(self):
-        """Load workflow specifications from YAML files"""
+        """Load workflow specifications from YAML files (workflows directory only)"""
         workflows_dir = Path(settings.workflows_dir)
         if not workflows_dir.exists():
             workflows_dir.mkdir(parents=True, exist_ok=True)
@@ -52,6 +63,12 @@ class Registry:
             try:
                 with open(file_path, 'r') as f:
                     data = yaml.safe_load(f)
+                    
+                    # Only load files that have required workflow fields
+                    if 'id' not in data or 'plan' not in data:
+                        logger.debug(f"Skipping non-workflow file: {file_path}")
+                        continue
+                    
                     workflow = WorkflowSpec(**data)
                     self.workflows[workflow.id] = workflow
                     logger.info(f"Loaded workflow: {workflow.id}")
@@ -69,7 +86,6 @@ class Registry:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    # Use relative path as prompt name
                     prompt_name = str(file_path.relative_to(prompts_dir)).replace('\\', '/').replace('.md', '')
                     self.prompts[prompt_name] = content
                     logger.info(f"Loaded prompt: {prompt_name}")
@@ -87,7 +103,6 @@ class Registry:
             agent = self.agents.get(agent_name)
             return agent.tools if agent else []
         
-        # Return all tools from all agents
         all_tools = []
         for agent in self.agents.values():
             all_tools.extend(agent.tools)
@@ -111,4 +126,3 @@ class Registry:
 
 # Global registry instance
 registry = Registry()
-

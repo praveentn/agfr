@@ -1,3 +1,4 @@
+
 # ============================================================================
 # agentic/core/orchestrator.py
 import asyncio
@@ -16,6 +17,8 @@ class Orchestrator:
     def __init__(self):
         self.mcp_client = MCPClientManager()
         self.active_executions: Dict[str, Any] = {}
+        self.max_execution_time = 300  # 5 minutes max execution time
+        self.max_node_time = 60  # 1 minute max per node
     
     async def execute_dag(self, dag: DAG, trace_id: Optional[str] = None) -> List[StepResult]:
         """Execute DAG with proper dependency resolution and parallel execution"""
@@ -23,6 +26,7 @@ class Orchestrator:
             trace_id = str(uuid.uuid4())
         
         logger.info(f"Starting DAG execution with trace_id: {trace_id}")
+        start_time = time.time()
         
         # Build dependency graph
         dependency_graph = self._build_dependency_graph(dag.nodes)
@@ -42,8 +46,10 @@ class Orchestrator:
             if not node.depends_on:
                 ready_queue.append(node)
         
-        while ready_queue or any(not result.success for result in all_results if not result.success):
-            if not ready_queue:
+        while ready_queue:
+            # Check overall execution timeout
+            if time.time() - start_time > self.max_execution_time:
+                logger.error(f"DAG execution timed out after {self.max_execution_time} seconds")
                 break
             
             # Group ready nodes by parallel group
@@ -70,6 +76,11 @@ class Orchestrator:
                 batch_results = await self._execute_batch(current_batch, results, trace_id)
                 
                 for result in batch_results:
+                    if isinstance(result, Exception):
+                        # Handle exception from asyncio.gather
+                        logger.error(f"Batch execution exception: {result}")
+                        continue
+                    
                     results[result.node_id] = result
                     all_results.append(result)
                     
@@ -77,8 +88,8 @@ class Orchestrator:
                         completed_nodes.add(result.node_id)
                         
                         # Mark parallel group as completed if all nodes in group are done
-                        node = next(n for n in dag.nodes if n.id == result.node_id)
-                        if node.parallel_group:
+                        node = next((n for n in dag.nodes if n.id == result.node_id), None)
+                        if node and node.parallel_group:
                             group_nodes = parallel_groups.get(node.parallel_group, [])
                             if all(gn.id in completed_nodes for gn in group_nodes):
                                 completed_groups.add(node.parallel_group)
@@ -98,7 +109,8 @@ class Orchestrator:
                         if dependencies_met:
                             ready_queue.append(node)
         
-        logger.info(f"DAG execution completed with {len(all_results)} steps")
+        execution_time = time.time() - start_time
+        logger.info(f"DAG execution completed in {execution_time:.2f}s with {len(all_results)} steps")
         return all_results
     
     def _build_dependency_graph(self, nodes: List[Node]) -> Dict[str, List[str]]:
@@ -127,7 +139,7 @@ class Orchestrator:
         return await asyncio.gather(*tasks, return_exceptions=True)
     
     async def _execute_node(self, node: Node, previous_results: Dict[str, StepResult], trace_id: str) -> StepResult:
-        """Execute a single node"""
+        """Execute a single node with timeout"""
         start_time = time.time()
         
         try:
@@ -139,12 +151,17 @@ class Orchestrator:
             # Resolve parameters with template substitution
             resolved_params = self._resolve_params(node.params, previous_results)
             
-            # Execute tool
-            result = await self.mcp_client.call_tool(
-                agent=agent,
-                tool_name=node.tool,
-                params=resolved_params,
-                timeout=node.timeout_sec
+            # Execute tool with node-specific timeout
+            node_timeout = node.timeout_sec or self.max_node_time
+            
+            result = await asyncio.wait_for(
+                self.mcp_client.call_tool(
+                    agent=agent,
+                    tool_name=node.tool,
+                    params=resolved_params,
+                    timeout=node_timeout
+                ),
+                timeout=node_timeout + 5  # Add 5 seconds buffer for cleanup
             )
             
             return StepResult(
@@ -159,6 +176,19 @@ class Orchestrator:
                 tool=node.tool
             )
             
+        except asyncio.TimeoutError:
+            error_msg = f"Node execution timed out after {node.timeout_sec or self.max_node_time} seconds"
+            logger.error(f"Node {node.id} timed out: {error_msg}")
+            return StepResult(
+                node_id=node.id,
+                success=False,
+                error=error_msg,
+                started_at=start_time,
+                finished_at=time.time(),
+                trace_id=trace_id,
+                agent=node.agent,
+                tool=node.tool
+            )
         except Exception as e:
             logger.error(f"Node execution failed for {node.id}: {e}")
             return StepResult(
@@ -192,4 +222,5 @@ class Orchestrator:
         return resolved
 
 orchestrator = Orchestrator()
+
 

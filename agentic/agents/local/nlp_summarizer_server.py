@@ -113,4 +113,5 @@ def _select_important_sentences(sentences: list, num_sentences: int) -> list:
 
 if __name__ == "__main__":
     print("Starting NLP Summarizer Server on port 9103...")
+    # mcp.run(port=9103)
     mcp.run(transport="sse", host="0.0.0.0", port=9103)
