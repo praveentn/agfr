@@ -1,5 +1,5 @@
 # agentic/agents/local/web_search_server.py
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 import json
 import time
 import requests
@@ -63,7 +63,6 @@ def search(query: str, limit: int = 8, recency_days: int = None) -> Dict[str, An
 
 if __name__ == "__main__":
     print("Starting Web Search Server on port 9101...")
-    # mcp.run(transport="sse", host="0.0.0.0", port=9101)
-    mcp.run()
+    mcp.run(transport="sse", host="0.0.0.0", port=9101)
 
 

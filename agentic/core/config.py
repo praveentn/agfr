@@ -1,4 +1,3 @@
-# ============================================================================
 # agentic/core/config.py
 import os
 from pydantic import BaseModel
@@ -23,8 +22,8 @@ class Settings(BaseModel):
     azure_openai_endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
     azure_openai_api_key: str = os.getenv("AZURE_OPENAI_API_KEY", "")
     azure_openai_api_version: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
-    azure_openai_deployment: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1-nano")
-    azure_openai_model: str = os.getenv("AZURE_OPENAI_MODEL", "gpt-4.1-nano")
+    azure_openai_deployment: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4")
+    azure_openai_model: str = os.getenv("AZURE_OPENAI_MODEL", "gpt-4")
     
     # LLM Configuration
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "4000"))
@@ -42,7 +41,7 @@ class Settings(BaseModel):
     prompts_dir: str = "agentic/prompts"
     workflows_dir: str = "agentic/workflows"
     
-    # logging
+    # Logging
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     log_format: str = os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -58,4 +57,3 @@ class Settings(BaseModel):
         }
 
 settings = Settings()
-

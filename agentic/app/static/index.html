@@ -135,36 +135,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        .workflow-node {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-
-        .workflow-node:hover {
-            border-color: var(--secondary-color);
-            box-shadow: 0 2px 10px rgba(52, 152, 219, 0.1);
-        }
-
-        .workflow-node.completed {
-            border-color: var(--success-color);
-            background-color: rgba(39, 174, 96, 0.05);
-        }
-
-        .workflow-node.failed {
-            border-color: var(--accent-color);
-            background-color: rgba(231, 76, 60, 0.05);
-        }
-
-        .workflow-node.running {
-            border-color: var(--secondary-color);
-            background-color: rgba(52, 152, 219, 0.05);
-        }
-
         .result-table {
             background: white;
             border-radius: 8px;
@@ -243,6 +213,15 @@
             padding: 8px 12px;
             margin: 5px 0;
             border-left: 3px solid var(--secondary-color);
+        }
+
+        .sql-results-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .pagination-controls {
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -433,7 +412,7 @@
                                     <div class="mb-3">
                                         <label for="sqlQuery" class="form-label">SQL Query:</label>
                                         <textarea class="form-control" id="sqlQuery" rows="4" 
-                                                placeholder="SELECT * FROM table_name;"></textarea>
+                                                placeholder="SELECT * FROM table_name; &#10;&#10;Available tables:&#10;- execution_logs&#10;- workflow_executions&#10;- agents_registry"></textarea>
                                     </div>
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="confirmDangerous">
@@ -446,6 +425,21 @@
                                         Execute SQL
                                     </button>
                                 </form>
+
+                                <div class="mt-4">
+                                    <h6>Quick Queries:</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-outline-info btn-sm" onclick="setQuickQuery('SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10')">
+                                            Recent Logs
+                                        </button>
+                                        <button class="btn btn-outline-info btn-sm" onclick="setQuickQuery('SELECT * FROM workflow_executions ORDER BY created_at DESC LIMIT 10')">
+                                            Recent Executions
+                                        </button>
+                                        <button class="btn btn-outline-info btn-sm" onclick="setQuickQuery('SELECT name FROM sqlite_master WHERE type=\\'table\\'')">
+                                            Show Tables
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -479,6 +473,7 @@
                             </div>
                             <div class="card-body">
                                 <div id="sqlResults"></div>
+                                <div id="sqlPagination" class="pagination-controls"></div>
                             </div>
                         </div>
                     </div>
@@ -492,7 +487,7 @@
     <script>
         // Configuration
         const API_BASE = '/api';
-        const AUTH_TOKEN = 'devtoken'; // In production, get from secure storage
+        const AUTH_TOKEN = 'devtoken123'; // Fixed to match .env
 
         // Helper functions
         function makeRequest(url, options = {}) {
@@ -532,31 +527,80 @@
             return JSON.stringify(obj, null, 2);
         }
 
-        function createTable(data, columns = null) {
+        function createTable(data, columns = null, paginated = false, pageSize = 10) {
             if (!data || data.length === 0) {
                 return '<p class="text-muted">No data to display</p>';
             }
 
             const cols = columns || Object.keys(data[0]);
             
-            let html = '<div class="table-responsive"><table class="table table-striped result-table">';
+            let html = '<div class="table-responsive sql-results-table"><table class="table table-striped result-table">';
             html += '<thead><tr>';
             cols.forEach(col => {
                 html += `<th>${col}</th>`;
             });
             html += '</tr></thead><tbody>';
             
-            data.forEach(row => {
+            const displayData = paginated ? data.slice(0, pageSize) : data;
+            
+            displayData.forEach(row => {
                 html += '<tr>';
                 cols.forEach(col => {
-                    const value = row[col] || 'N/A';
-                    html += `<td>${typeof value === 'object' ? JSON.stringify(value) : value}</td>`;
+                    let value = row[col];
+                    if (value === null || value === undefined) {
+                        value = '<span class="text-muted">NULL</span>';
+                    } else if (typeof value === 'object') {
+                        value = JSON.stringify(value);
+                    } else if (typeof value === 'string' && value.length > 100) {
+                        value = value.substring(0, 100) + '...';
+                    }
+                    html += `<td>${value}</td>`;
                 });
                 html += '</tr>';
             });
             
             html += '</tbody></table></div>';
+            
+            if (paginated && data.length > pageSize) {
+                html += createPagination(data, cols, pageSize);
+            }
+            
             return html;
+        }
+
+        function createPagination(data, columns, pageSize) {
+            const totalPages = Math.ceil(data.length / pageSize);
+            let paginationHtml = '<nav><ul class="pagination pagination-sm">';
+            
+            for (let i = 1; i <= totalPages; i++) {
+                paginationHtml += `
+                    <li class="page-item ${i === 1 ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="showPage(${i}, ${pageSize})">${i}</a>
+                    </li>
+                `;
+            }
+            
+            paginationHtml += '</ul></nav>';
+            return paginationHtml;
+        }
+
+        let currentSqlData = null;
+        let currentSqlColumns = null;
+
+        function showPage(pageNumber, pageSize) {
+            if (!currentSqlData || !currentSqlColumns) return;
+            
+            const startIndex = (pageNumber - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const pageData = currentSqlData.slice(startIndex, endIndex);
+            
+            const tableHtml = createTable(pageData, currentSqlColumns, false);
+            document.getElementById('sqlResults').innerHTML = tableHtml;
+            
+            // Update pagination active state
+            document.querySelectorAll('.pagination .page-item').forEach((item, index) => {
+                item.classList.toggle('active', index + 1 === pageNumber);
+            });
         }
 
         // Load initial data
@@ -568,19 +612,28 @@
                 const container = document.getElementById('agentsContainer');
                 container.innerHTML = '';
                 
+                if (!data.agents || data.agents.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No agents available</p>';
+                    return;
+                }
+                
                 data.agents.forEach(agent => {
                     const agentCard = document.createElement('div');
                     agentCard.className = 'agent-card';
                     
                     let toolsHtml = '';
-                    agent.tools.forEach(tool => {
-                        toolsHtml += `
-                            <div class="tool-item">
-                                <strong>${tool.name}</strong>
-                                <p class="mb-1 small text-muted">${tool.description}</p>
-                            </div>
-                        `;
-                    });
+                    if (agent.tools && agent.tools.length > 0) {
+                        agent.tools.forEach(tool => {
+                            toolsHtml += `
+                                <div class="tool-item">
+                                    <strong>${tool.name}</strong>
+                                    <p class="mb-1 small text-muted">${tool.description}</p>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        toolsHtml = '<p class="text-muted small">No tools available</p>';
+                    }
                     
                     agentCard.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start">
@@ -606,7 +659,8 @@
                 });
                 
             } catch (error) {
-                showError(`Failed to load agents: ${error.message}`);
+                console.error('Failed to load agents:', error);
+                document.getElementById('agentsContainer').innerHTML = '<p class="text-danger">Failed to load agents</p>';
             }
         }
 
@@ -622,6 +676,11 @@
                 // Update workflows tab
                 const container = document.getElementById('workflowsContainer');
                 container.innerHTML = '';
+                
+                if (!data.workflows || data.workflows.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No workflows available</p>';
+                    return;
+                }
                 
                 data.workflows.forEach(workflow => {
                     // Add to selector
@@ -654,7 +713,8 @@
                 });
                 
             } catch (error) {
-                showError(`Failed to load workflows: ${error.message}`);
+                console.error('Failed to load workflows:', error);
+                document.getElementById('workflowsContainer').innerHTML = '<p class="text-danger">Failed to load workflows</p>';
             }
         }
 
@@ -737,26 +797,28 @@
                         </div>
                         <p class="mt-2 mb-1"><strong>Trace ID:</strong> ${result.trace_id}</p>
                         <p class="mb-1"><strong>Intent:</strong> ${result.intent}</p>
-                        <p class="mb-0"><strong>Execution Time:</strong> ${result.execution_time.toFixed(2)}s</p>
+                        <p class="mb-0"><strong>Execution Time:</strong> ${result.execution_time ? result.execution_time.toFixed(2) : '0.00'}s</p>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Steps:</strong> ${result.results.length}</p>
-                        <p class="mb-1"><strong>Successful:</strong> ${result.results.filter(r => r.success).length}</p>
-                        <p class="mb-0"><strong>Failed:</strong> ${result.results.filter(r => !r.success).length}</p>
+                        <p class="mb-1"><strong>Steps:</strong> ${result.results ? result.results.length : 0}</p>
+                        <p class="mb-1"><strong>Successful:</strong> ${result.results ? result.results.filter(r => r.success).length : 0}</p>
+                        <p class="mb-0"><strong>Failed:</strong> ${result.results ? result.results.filter(r => !r.success).length : 0}</p>
                     </div>
                 </div>
             `;
             
             // Update log
             logContainer.innerHTML = '';
-            result.results.forEach(step => {
-                const status = step.success ? 'SUCCESS' : 'FAILED';
-                const duration = (step.finished_at - step.started_at).toFixed(2);
-                logContainer.innerHTML += `[${status}] ${step.node_id} (${step.agent}:${step.tool}) - ${duration}s\n`;
-                if (step.error) {
-                    logContainer.innerHTML += `  Error: ${step.error}\n`;
-                }
-            });
+            if (result.results && result.results.length > 0) {
+                result.results.forEach(step => {
+                    const status = step.success ? 'SUCCESS' : 'FAILED';
+                    const duration = (step.finished_at && step.started_at) ? (step.finished_at - step.started_at).toFixed(2) : '0.00';
+                    logContainer.innerHTML += `[${status}] ${step.node_id} (${step.agent}:${step.tool}) - ${duration}s\n`;
+                    if (step.error) {
+                        logContainer.innerHTML += `  Error: ${step.error}\n`;
+                    }
+                });
+            }
             
             // Show results
             resultsCard.style.display = 'block';
@@ -816,7 +878,11 @@
             }
         }
 
-        // SQL Executor
+        // SQL Executor functions
+        function setQuickQuery(query) {
+            document.getElementById('sqlQuery').value = query;
+        }
+
         document.getElementById('sqlForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -839,16 +905,19 @@
                 
                 const result = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && result.success) {
                     const resultsCard = document.getElementById('sqlResultsCard');
                     const resultsContainer = document.getElementById('sqlResults');
                     
                     resultsCard.style.display = 'block';
                     
                     if (result.data) {
+                        currentSqlData = result.data;
+                        currentSqlColumns = result.columns;
+                        
                         resultsContainer.innerHTML = `
                             <p><strong>Rows returned:</strong> ${result.row_count}</p>
-                            ${createTable(result.data, result.columns)}
+                            ${createTable(result.data, result.columns, true, 20)}
                         `;
                     } else {
                         resultsContainer.innerHTML = `
@@ -861,7 +930,7 @@
                     
                     showSuccess('SQL query executed successfully!');
                 } else {
-                    throw new Error(result.detail || 'SQL execution failed');
+                    throw new Error(result.error || result.detail || 'SQL execution failed');
                 }
                 
             } catch (error) {
@@ -892,7 +961,24 @@
         }
 
         function exportLogs() {
-            showSuccess('Log export feature coming soon!');
+            // Create and download logs export
+            const currentTime = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `agentic_logs_${currentTime}.txt`;
+            
+            // Get current log content
+            const logContent = document.getElementById('executionLog').textContent || 'No logs available';
+            
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showSuccess(`Logs exported as ${filename}`);
         }
 
         // Initialize app

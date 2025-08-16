@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import asyncio
+import time
 from pathlib import Path
 import os
 
@@ -16,11 +17,12 @@ from ..core.registry import registry
 from ..core.planner import planner
 from ..core.orchestrator import orchestrator
 from ..core.composer import composer
+from ..core.database import db_manager
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, settings.log_level.upper()),
+    format=settings.log_format
 )
 logger = logging.getLogger(__name__)
 
@@ -76,13 +78,16 @@ async def execute_query(
         # Compose final result
         final_result = composer.compose_results(results, dag.metadata.get("intent", "general"))
         
+        # Calculate execution time
+        execution_time = sum(r.finished_at - r.started_at for r in results if r.started_at and r.finished_at)
+        
         return QueryResponse(
             trace_id=trace_id,
             intent=dag.metadata.get("intent", "unknown"),
             plan=dag,
             results=results,
             final_result=final_result,
-            execution_time=sum(r.finished_at - r.started_at for r in results),
+            execution_time=execution_time,
             success=all(r.success for r in results),
             error=None if all(r.success for r in results) else "Some steps failed"
         )
@@ -94,43 +99,51 @@ async def execute_query(
 @app.get("/api/agents")
 async def list_agents(token: str = Depends(verify_token)):
     """List all available agents and their tools"""
-    agents = registry.list_agents()
-    return {
-        "agents": [
-            {
-                "name": agent.name,
-                "description": agent.description,
-                "endpoint": agent.endpoint,
-                "enabled": agent.enabled,
-                "tools": [
-                    {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "params_schema": tool.params_schema
-                    }
-                    for tool in agent.tools
-                ]
-            }
-            for agent in agents
-        ]
-    }
+    try:
+        agents = registry.list_agents()
+        return {
+            "agents": [
+                {
+                    "name": agent.name,
+                    "description": agent.description,
+                    "endpoint": agent.endpoint,
+                    "enabled": agent.enabled,
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "params_schema": tool.params_schema
+                        }
+                        for tool in agent.tools
+                    ]
+                }
+                for agent in agents
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to list agents: {e}")
+        return {"agents": []}
 
 @app.get("/api/workflows")
 async def list_workflows(token: str = Depends(verify_token)):
     """List all available workflows"""
-    workflows = registry.list_workflows()
-    return {
-        "workflows": [
-            {
-                "id": wf.id,
-                "name": wf.name,
-                "description": wf.description,
-                "intent": wf.intent,
-                "nodes": len(wf.plan.nodes)
-            }
-            for wf in workflows
-        ]
-    }
+    try:
+        workflows = registry.list_workflows()
+        return {
+            "workflows": [
+                {
+                    "id": wf.id,
+                    "name": wf.name,
+                    "description": wf.description,
+                    "intent": wf.intent,
+                    "nodes": len(wf.plan.nodes)
+                }
+                for wf in workflows
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to list workflows: {e}")
+        return {"workflows": []}
 
 @app.post("/api/workflows/{workflow_id}/run")
 async def run_workflow(
@@ -151,7 +164,7 @@ async def run_workflow(
         return {
             "trace_id": trace_id,
             "workflow_id": workflow_id,
-            "results": results,
+            "results": [r.dict() for r in results],
             "final_result": final_result,
             "success": all(r.success for r in results)
         }
@@ -166,8 +179,6 @@ async def execute_sql(
 ):
     """Execute raw SQL query (admin functionality)"""
     try:
-        import sqlite3
-        
         sql_query = query.get("query", "").strip()
         if not sql_query:
             raise HTTPException(status_code=400, detail="SQL query is required")
@@ -181,32 +192,8 @@ async def execute_sql(
                     detail="Dangerous SQL detected. Use confirm_dangerous=true to proceed."
                 )
         
-        db_path = settings.database_url.replace("sqlite:///", "")
-        
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute(sql_query)
-            
-            if sql_query.upper().strip().startswith("SELECT"):
-                rows = cursor.fetchall()
-                columns = [description[0] for description in cursor.description] if cursor.description else []
-                data = [dict(row) for row in rows]
-                
-                return {
-                    "success": True,
-                    "data": data,
-                    "columns": columns,
-                    "row_count": len(data)
-                }
-            else:
-                conn.commit()
-                return {
-                    "success": True,
-                    "message": f"Query executed successfully. Rows affected: {cursor.rowcount}",
-                    "rows_affected": cursor.rowcount
-                }
+        result = db_manager.execute_query(sql_query)
+        return result
                 
     except Exception as e:
         logger.error(f"SQL execution failed: {e}")
@@ -221,6 +208,11 @@ async def reload_registry(token: str = Depends(verify_token)):
     except Exception as e:
         logger.error(f"Registry reload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": time.time()}
 
 if __name__ == "__main__":
     import uvicorn

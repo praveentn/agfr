@@ -1,0 +1,34 @@
+# agentic/workflows/data_analysis.yaml
+id: data_analysis
+name: Data Analysis Workflow
+description: Analyze and tabulate data
+intent: data_analysis
+inputs:
+  data: ""
+  analysis_type: "general"
+plan:
+  nodes:
+    - id: analyze
+      agent: nlp_summarizer
+      tool: summarize
+      params:
+        text: "{{inputs.data}}"
+        style: "detailed"
+      description: "Analyze the data"
+    
+    - id: tabulate
+      agent: tabulator
+      tool: tabulate
+      params:
+        data: "{{results.analyze.data}}"
+        format: "json"
+      depends_on: ["analyze"]
+      description: "Create structured output"
+
+outputs:
+  format: table
+  
+metadata:
+  created_by: "system"
+  version: "1.0"
+  tags: ["analysis", "data"]

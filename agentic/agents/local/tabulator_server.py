@@ -1,5 +1,5 @@
 # agentic/agents/local/tabulator_server.py
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 import json
 import pandas as pd
 from typing import Dict, List, Any, Union
@@ -114,6 +114,5 @@ def _extract_data_from_text(text: str, fields: List[str] = None) -> List[Dict]:
 
 if __name__ == "__main__":
     print("Starting Tabulator Server on port 9102...")
-    # mcp.run(transport="sse", host="0.0.0.0", port=9102)
-    mcp.run()
+    mcp.run(transport="sse", host="0.0.0.0", port=9102)
 

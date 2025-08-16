@@ -1,37 +1,65 @@
+# agentic/workflows/market_research_shoes.yaml
 id: market_research_shoes
-name: Market Research Workflow
-description: Comprehensive product research and analysis
-intent: product_analysis
+name: Shoe Market Research
+description: Comprehensive market research analysis for footwear industry
+intent: market_research
+inputs:
+  topic: "shoes"
+  decision_criteria: ["price", "comfort", "durability", "brand"]
 plan:
   nodes:
-    - id: search_product
+    - id: search_trends
       agent: web_search
       tool: search
-      params:
-        query: "{{inputs.product}} reviews 2024"
+      params: 
+        query: "2025 shoe market trends analysis"
         limit: 10
-      parallel_group: research
+      parallel_group: "market_data"
+      description: "Search for current shoe market trends"
     
-    - id: search_competitors
+    - id: search_brands
       agent: web_search
       tool: search
       params:
-        query: "{{inputs.product}} competitors comparison"
-        limit: 8
-      parallel_group: research
+        query: "top shoe brands 2025 consumer reviews"
+        limit: 10
+      parallel_group: "market_data"
+      description: "Search for top shoe brands and reviews"
     
-    - id: analyze_findings
+    - id: search_pricing
+      agent: web_search
+      tool: search
+      params:
+        query: "shoe pricing trends retail market 2025"
+        limit: 8
+      parallel_group: "market_data"
+      description: "Search for pricing information"
+    
+    - id: summarize_findings
       agent: nlp_summarizer
       tool: summarize
       params:
-        text: "{{results.research.combined}}"
-        style: detailed
-      depends_on: [research]
+        text: "{{results.market_data.combined}}"
+        style: "detailed"
+        max_length: 500
+      depends_on: ["market_data"]
+      description: "Summarize all market research findings"
     
     - id: create_report
       agent: tabulator
       tool: tabulate
       params:
-        data: "{{results.analyze_findings.data}}"
-        fields: ["product", "rating", "price", "pros", "cons"]
-      depends_on: [analyze_findings]
+        data: "{{results.summarize_findings.data}}"
+        fields: ["brand", "price_range", "key_features", "market_position", "consumer_sentiment"]
+        format: "json"
+      depends_on: ["summarize_findings"]
+      description: "Create structured market research report"
+
+outputs:
+  format: table
+  fields: ["brand", "price_range", "key_features", "market_position", "consumer_sentiment"]
+  
+metadata:
+  created_by: "system"
+  version: "1.0"
+  tags: ["market_research", "footwear", "consumer_analysis"]
