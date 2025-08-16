@@ -1,0 +1,40 @@
+# agentic/agents/web_search.yaml
+name: web_search
+endpoint: http://localhost:9101
+transport: http
+description: Web search agent for finding information online
+enabled: true
+tools:
+  - name: search
+    description: Search the web for information
+    params_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 8
+          description: Maximum number of results
+        recency_days:
+          type: integer
+          minimum: 0
+          description: Only return results from last N days
+      required: [query]
+    returns_schema:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              title: {type: string}
+              url: {type: string}
+              snippet: {type: string}
+              date_published: {type: string}
+
+

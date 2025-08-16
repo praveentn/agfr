@@ -1,0 +1,26 @@
+# agentic/workflows/simple_search.yaml
+id: simple_search
+name: Simple Web Search
+description: Basic web search workflow
+intent: web_search
+inputs:
+  query: ""
+plan:
+  nodes:
+    - id: search
+      agent: web_search
+      tool: search
+      params:
+        query: "{{inputs.query}}"
+        limit: 10
+      description: "Perform web search"
+
+outputs:
+  format: list
+  
+metadata:
+  created_by: "system"
+  version: "1.0"
+  tags: ["search", "basic"]
+
+

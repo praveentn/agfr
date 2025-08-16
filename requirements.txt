@@ -1,0 +1,24 @@
+# requirements.txt
+# Core dependencies
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+pyyaml
+aiohttp
+jinja2
+python-multipart
+
+# MCP and LLM
+fastmcp
+openai
+
+# Data processing
+pandas
+requests
+beautifulsoup4
+
+# Web automation (optional)
+selenium
+webdriver-manager
+

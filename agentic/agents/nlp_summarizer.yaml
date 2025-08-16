@@ -1,0 +1,32 @@
+# agentic/agents/nlp_summarizer.yaml
+name: nlp_summarizer
+endpoint: http://localhost:9103
+transport: http
+description: Natural language processing and summarization agent
+enabled: true
+tools:
+  - name: summarize
+    description: Summarize text content
+    params_schema:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Text to summarize
+        max_length:
+          type: integer
+          default: 200
+          description: Maximum summary length
+        style:
+          type: string
+          enum: [brief, detailed, bullet_points]
+          default: brief
+      required: [text]
+    returns_schema:
+      type: object
+      properties:
+        summary: {type: string}
+        key_points: {type: array, items: {type: string}}
+        word_count: {type: integer}
+
+

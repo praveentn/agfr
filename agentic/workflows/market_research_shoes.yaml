@@ -1,0 +1,37 @@
+id: market_research_shoes
+name: Market Research Workflow
+description: Comprehensive product research and analysis
+intent: product_analysis
+plan:
+  nodes:
+    - id: search_product
+      agent: web_search
+      tool: search
+      params:
+        query: "{{inputs.product}} reviews 2024"
+        limit: 10
+      parallel_group: research
+    
+    - id: search_competitors
+      agent: web_search
+      tool: search
+      params:
+        query: "{{inputs.product}} competitors comparison"
+        limit: 8
+      parallel_group: research
+    
+    - id: analyze_findings
+      agent: nlp_summarizer
+      tool: summarize
+      params:
+        text: "{{results.research.combined}}"
+        style: detailed
+      depends_on: [research]
+    
+    - id: create_report
+      agent: tabulator
+      tool: tabulate
+      params:
+        data: "{{results.analyze_findings.data}}"
+        fields: ["product", "rating", "price", "pros", "cons"]
+      depends_on: [analyze_findings]

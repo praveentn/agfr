@@ -1,0 +1,39 @@
+# agentic/agents/calculator.yaml
+name: calculator
+endpoint: http://localhost:9104
+transport: http
+description: Mathematical calculations and data processing
+enabled: true
+tools:
+  - name: add
+    description: Add two numbers
+    params_schema:
+      type: object
+      properties:
+        a: {type: number}
+        b: {type: number}
+      required: [a, b]
+    returns_schema:
+      type: number
+  - name: multiply
+    description: Multiply two numbers
+    params_schema:
+      type: object
+      properties:
+        a: {type: number}
+        b: {type: number}
+      required: [a, b]
+    returns_schema:
+      type: number
+  - name: divide
+    description: Divide two numbers
+    params_schema:
+      type: object
+      properties:
+        a: {type: number}
+        b: {type: number}
+      required: [a, b]
+    returns_schema:
+      type: number
+
+

@@ -1,0 +1,33 @@
+# agentic/agents/tabulator.yaml
+name: tabulator
+endpoint: http://localhost:9102
+transport: http
+description: Data tabulation and formatting agent
+enabled: true
+tools:
+  - name: tabulate
+    description: Convert data into structured table format
+    params_schema:
+      type: object
+      properties:
+        data:
+          description: Data to tabulate (JSON array or text)
+        fields:
+          type: array
+          items: {type: string}
+          description: Fields to extract/display
+        format:
+          type: string
+          enum: [json, csv, html]
+          default: json
+      required: [data]
+    returns_schema:
+      type: object
+      properties:
+        table:
+          type: array
+          description: Tabulated data
+        format: {type: string}
+        row_count: {type: integer}
+
+
