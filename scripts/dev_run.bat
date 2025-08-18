@@ -7,16 +7,16 @@ echo ===========================================
 call venv\Scripts\activate.bat
 
 echo Starting MCP agent servers...
-start "Web Search Agent" cmd /k "python agentic\agents\local\web_search_server.py"
+start "Web Search Agent" cmd /k "fastmcp run agentic\agents\local\web_search_server.py --transport http --port 9101"
 timeout /t 2 /nobreak >nul
 
-start "Tabulator Agent" cmd /k "python agentic\agents\local\tabulator_server.py"
+start "Tabulator Agent" cmd /k "fastmcp run agentic\agents\local\tabulator_server.py --transport http --port 9102"
 timeout /t 2 /nobreak >nul
 
-start "NLP Summarizer Agent" cmd /k "python agentic\agents\local\nlp_summarizer_server.py"
+start "NLP Summarizer Agent" cmd /k "fastmcp run agentic\agents\local\nlp_summarizer_server.py --transport http --port 9103"
 timeout /t 2 /nobreak >nul
 
-start "Calculator Agent" cmd /k "python agentic\agents\local\calculator_server.py"
+start "Calculator Agent" cmd /k "fastmcp run agentic\agents\local\calculator_server.py --transport http --port 9104"
 timeout /t 2 /nobreak >nul
 
 echo Waiting for agents to start...
