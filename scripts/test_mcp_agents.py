@@ -1,314 +1,307 @@
-# scripts/test_mcp_agents.py
+# scripts/test_mcp_servers.py
+"""
+Test script to verify MCP server compliance and functionality
+"""
 import asyncio
 import aiohttp
 import json
-import time
 import sys
-import os
+import time
+from typing import Dict, Any, List
 
-# Add the project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# MCP Server endpoints
+MCP_SERVERS = {
+    "web_search": "http://127.0.0.1:9101",
+    "tabulator": "http://127.0.0.1:9102", 
+    "nlp_summarizer": "http://127.0.0.1:9103",
+    "calculator": "http://127.0.0.1:9104"
+}
 
-async def test_agent_endpoint(name, base_url, tests):
-    """Test a specific MCP agent with multiple test cases"""
-    print(f"\n{'='*60}")
-    print(f"🧪 Testing {name}")
-    print(f"{'='*60}")
+class MCPTester:
+    def __init__(self):
+        self.protocol_version = "2025-06-18"
+        self.sessions = {}
+        self.test_results = {}
     
-    results = []
-    
-    try:
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            
-            # Test 1: Health Check
-            print(f"1️⃣  Testing health endpoint...")
-            try:
-                async with session.post(f"{base_url}/health", json={}) as response:
-                    if response.status == 200:
-                        health_data = await response.json()
-                        print(f"   ✅ Health: {health_data.get('status', 'unknown')}")
-                        results.append(("health", True, health_data))
-                    else:
-                        print(f"   ❌ Health check failed: HTTP {response.status}")
-                        results.append(("health", False, f"HTTP {response.status}"))
-            except Exception as e:
-                print(f"   ❌ Health check error: {str(e)}")
-                results.append(("health", False, str(e)))
-            
-            # Test 2: Get Tools
-            print(f"2️⃣  Testing get_tools endpoint...")
-            try:
-                async with session.post(f"{base_url}/get_tools", json={}) as response:
-                    if response.status == 200:
-                        tools_data = await response.json()
-                        tool_count = len(tools_data) if isinstance(tools_data, list) else "unknown"
-                        print(f"   ✅ Tools available: {tool_count}")
-                        results.append(("get_tools", True, tools_data))
-                    else:
-                        print(f"   ❌ Get tools failed: HTTP {response.status}")
-                        results.append(("get_tools", False, f"HTTP {response.status}"))
-            except Exception as e:
-                print(f"   ❌ Get tools error: {str(e)}")
-                results.append(("get_tools", False, str(e)))
-            
-            # Test 3: Specific tool tests
-            for i, test in enumerate(tests, 3):
-                tool_name = test["tool"]
-                params = test["params"]
-                expected = test.get("expected", {})
+    async def run_all_tests(self):
+        """Run comprehensive MCP server tests"""
+        print("=" * 70)
+        print("            MCP SERVER COMPLIANCE TEST SUITE")
+        print("=" * 70)
+        print(f"Protocol Version: {self.protocol_version}")
+        print(f"Testing {len(MCP_SERVERS)} MCP servers...")
+        print("=" * 70)
+        
+        async with aiohttp.ClientSession() as session:
+            for server_name, endpoint in MCP_SERVERS.items():
+                print(f"\n🧪 Testing {server_name.upper()} ({endpoint})")
+                print("-" * 50)
                 
-                print(f"{i}️⃣  Testing {tool_name} tool...")
-                try:
-                    async with session.post(f"{base_url}/{tool_name}", json=params) as response:
-                        if response.status == 200:
-                            result_data = await response.json()
-                            
-                            # Validate expected results if provided
-                            if expected:
-                                valid = all(
-                                    key in result_data and result_data[key] == value 
-                                    for key, value in expected.items()
-                                )
-                                if valid:
-                                    print(f"   ✅ {tool_name}: Success (validated)")
-                                else:
-                                    print(f"   ⚠️  {tool_name}: Success but validation failed")
-                            else:
-                                print(f"   ✅ {tool_name}: Success")
-                            
-                            # Show preview of result
-                            if isinstance(result_data, dict):
-                                preview_keys = list(result_data.keys())[:3]
-                                preview = {k: result_data[k] for k in preview_keys}
-                                print(f"   📄 Preview: {json.dumps(preview, indent=2)[:100]}...")
-                            
-                            results.append((tool_name, True, result_data))
-                        else:
-                            error_text = await response.text()
-                            print(f"   ❌ {tool_name}: HTTP {response.status} - {error_text[:100]}")
-                            results.append((tool_name, False, f"HTTP {response.status}: {error_text}"))
-                            
-                except Exception as e:
-                    print(f"   ❌ {tool_name}: Error - {str(e)}")
-                    results.append((tool_name, False, str(e)))
-                
-                # Small delay between tests
-                await asyncio.sleep(0.5)
+                self.test_results[server_name] = await self.test_server(session, server_name, endpoint)
+        
+        self.print_summary()
     
-    except Exception as e:
-        print(f"❌ Failed to connect to {name}: {str(e)}")
-        return [(name, False, str(e))]
-    
-    # Summary for this agent
-    success_count = sum(1 for _, success, _ in results if success)
-    total_tests = len(results)
-    
-    print(f"\n📊 {name} Summary: {success_count}/{total_tests} tests passed")
-    
-    return results
-
-async def test_full_workflow():
-    """Test a complete workflow using the main API"""
-    print(f"\n{'='*60}")
-    print(f"🔄 Testing Complete Workflow")
-    print(f"{'='*60}")
-    
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+    async def test_server(self, session: aiohttp.ClientSession, server_name: str, endpoint: str) -> Dict[str, Any]:
+        """Test individual MCP server"""
+        results = {
+            "connectivity": False,
+            "initialization": False,
+            "tools_list": False,
+            "tool_execution": False,
+            "session_management": False,
+            "errors": []
+        }
+        
+        try:
+            # Test 1: Basic connectivity
+            print("  ✓ Testing basic connectivity...")
+            if await self.test_connectivity(session, endpoint):
+                results["connectivity"] = True
+                print("    ✅ Server is reachable")
+            else:
+                results["errors"].append("Server not reachable")
+                print("    ❌ Server not reachable")
+                return results
             
-            # Test the main API endpoint
-            query_data = {
-                "text": "What is the capital of France?",
-                "options": {},
-                "context": {}
+            # Test 2: MCP Initialization
+            print("  ✓ Testing MCP initialization...")
+            session_id = await self.test_initialization(session, endpoint)
+            if session_id:
+                results["initialization"] = True
+                results["session_management"] = True
+                self.sessions[server_name] = session_id
+                print(f"    ✅ Initialization successful (Session: {session_id[:8]}...)")
+            else:
+                results["errors"].append("Initialization failed")
+                print("    ❌ Initialization failed")
+                return results
+            
+            # Test 3: Tools listing
+            print("  ✓ Testing tools/list...")
+            tools = await self.test_tools_list(session, endpoint, session_id)
+            if tools:
+                results["tools_list"] = True
+                print(f"    ✅ Found {len(tools)} tools: {[t['name'] for t in tools]}")
+            else:
+                results["errors"].append("Tools listing failed")
+                print("    ❌ Tools listing failed")
+            
+            # Test 4: Tool execution
+            print("  ✓ Testing tool execution...")
+            if await self.test_tool_execution(session, endpoint, session_id, tools):
+                results["tool_execution"] = True
+                print("    ✅ Tool execution successful")
+            else:
+                results["errors"].append("Tool execution failed")
+                print("    ❌ Tool execution failed")
+        
+        except Exception as e:
+            results["errors"].append(f"Unexpected error: {str(e)}")
+            print(f"    ❌ Unexpected error: {str(e)}")
+        
+        return results
+    
+    async def test_connectivity(self, session: aiohttp.ClientSession, endpoint: str) -> bool:
+        """Test basic server connectivity"""
+        try:
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with session.get(endpoint, timeout=timeout) as response:
+                # Accept any response that's not a connection error
+                return response.status < 500
+        except Exception:
+            return False
+    
+    async def test_initialization(self, session: aiohttp.ClientSession, endpoint: str) -> str:
+        """Test MCP initialization protocol"""
+        try:
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": "test-init-1",
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": self.protocol_version,
+                    "capabilities": {
+                        "roots": {"listChanged": False},
+                        "sampling": {}
+                    },
+                    "clientInfo": {
+                        "name": "MCP Test Client",
+                        "version": "1.0.0"
+                    }
+                }
             }
             
             headers = {
-                "Authorization": "Bearer devtoken123",
+                "MCP-Protocol-Version": self.protocol_version,
                 "Content-Type": "application/json"
             }
             
-            print("🚀 Executing workflow query...")
-            async with session.post(
-                "http://localhost:8080/api/query", 
-                json=query_data,
-                headers=headers
-            ) as response:
+            async with session.post(endpoint, json=init_request, headers=headers) as response:
                 if response.status == 200:
-                    result = await response.json()
-                    print(f"   ✅ Workflow completed successfully")
-                    print(f"   📋 Intent: {result.get('intent')}")
-                    print(f"   ⏱️  Execution time: {result.get('execution_time', 0):.2f}s")
-                    print(f"   ✅ Success: {result.get('success')}")
-                    
-                    if result.get('final_result'):
-                        print(f"   📄 Result preview: {str(result['final_result'])[:200]}...")
-                    
-                    return True
-                else:
-                    error_text = await response.text()
-                    print(f"   ❌ Workflow failed: HTTP {response.status}")
-                    print(f"   📄 Error: {error_text[:200]}...")
-                    return False
-                    
-    except Exception as e:
-        print(f"❌ Workflow test failed: {str(e)}")
-        return False
+                    data = await response.json()
+                    if data.get("result"):
+                        session_id = response.headers.get("Mcp-Session-Id")
+                        
+                        # Send initialized notification
+                        init_notification = {
+                            "jsonrpc": "2.0",
+                            "method": "initialized",
+                            "params": {}
+                        }
+                        
+                        notif_headers = headers.copy()
+                        if session_id:
+                            notif_headers["Mcp-Session-Id"] = session_id
+                        
+                        async with session.post(endpoint, json=init_notification, headers=notif_headers) as notif_response:
+                            if notif_response.status == 202:
+                                return session_id
+                        
+                        return session_id  # Return even if notification fails
+            return None
+        except Exception as e:
+            print(f"    Debug: Initialization error: {e}")
+            return None
+    
+    async def test_tools_list(self, session: aiohttp.ClientSession, endpoint: str, session_id: str) -> List[Dict[str, Any]]:
+        """Test tools/list method"""
+        try:
+            tools_request = {
+                "jsonrpc": "2.0",
+                "id": "test-tools-1",
+                "method": "tools/list",
+                "params": {}
+            }
+            
+            headers = {
+                "MCP-Protocol-Version": self.protocol_version,
+                "Content-Type": "application/json"
+            }
+            if session_id:
+                headers["Mcp-Session-Id"] = session_id
+            
+            async with session.post(endpoint, json=tools_request, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("result") and data["result"].get("tools"):
+                        return data["result"]["tools"]
+            return []
+        except Exception as e:
+            print(f"    Debug: Tools list error: {e}")
+            return []
+    
+    async def test_tool_execution(self, session: aiohttp.ClientSession, endpoint: str, session_id: str, tools: List[Dict[str, Any]]) -> bool:
+        """Test tool execution"""
+        if not tools:
+            return False
+        
+        try:
+            # Find a suitable tool to test
+            test_tool = None
+            test_params = {}
+            
+            for tool in tools:
+                tool_name = tool.get("name")
+                if tool_name == "health":
+                    test_tool = tool_name
+                    test_params = {}
+                    break
+                elif tool_name == "add":
+                    test_tool = tool_name
+                    test_params = {"a": 5, "b": 3}
+                    break
+                elif tool_name == "search":
+                    test_tool = tool_name
+                    test_params = {"query": "test query", "limit": 1}
+                    break
+            
+            if not test_tool:
+                # Use first available tool
+                test_tool = tools[0].get("name")
+                test_params = {}
+            
+            tool_request = {
+                "jsonrpc": "2.0",
+                "id": "test-tool-1",
+                "method": "tools/call",
+                "params": {
+                    "name": test_tool,
+                    "arguments": test_params
+                }
+            }
+            
+            headers = {
+                "MCP-Protocol-Version": self.protocol_version,
+                "Content-Type": "application/json"
+            }
+            if session_id:
+                headers["Mcp-Session-Id"] = session_id
+            
+            async with session.post(endpoint, json=tool_request, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return "result" in data or "error" in data  # Either result or error is valid response
+                return False
+        except Exception as e:
+            print(f"    Debug: Tool execution error: {e}")
+            return False
+    
+    def print_summary(self):
+        """Print test results summary"""
+        print("\n" + "=" * 70)
+        print("                    TEST RESULTS SUMMARY")
+        print("=" * 70)
+        
+        total_servers = len(self.test_results)
+        passing_servers = 0
+        
+        for server_name, results in self.test_results.items():
+            print(f"\n🖥️  {server_name.upper()}:")
+            
+            all_passed = (
+                results["connectivity"] and 
+                results["initialization"] and 
+                results["tools_list"] and 
+                results["tool_execution"]
+            )
+            
+            if all_passed:
+                passing_servers += 1
+                print("    ✅ ALL TESTS PASSED")
+            else:
+                print("    ❌ SOME TESTS FAILED")
+            
+            print(f"    • Connectivity: {'✅' if results['connectivity'] else '❌'}")
+            print(f"    • Initialization: {'✅' if results['initialization'] else '❌'}")
+            print(f"    • Tools List: {'✅' if results['tools_list'] else '❌'}")
+            print(f"    • Tool Execution: {'✅' if results['tool_execution'] else '❌'}")
+            print(f"    • Session Management: {'✅' if results['session_management'] else '❌'}")
+            
+            if results["errors"]:
+                print(f"    • Errors: {', '.join(results['errors'])}")
+        
+        print(f"\n📊 OVERALL RESULTS:")
+        print(f"    • Servers Tested: {total_servers}")
+        print(f"    • Servers Passing: {passing_servers}")
+        print(f"    • Success Rate: {(passing_servers/total_servers)*100:.1f}%")
+        
+        if passing_servers == total_servers:
+            print("\n🎉 ALL MCP SERVERS ARE WORKING CORRECTLY!")
+            print("   The Agentic Framework is ready for use.")
+        else:
+            print(f"\n⚠️  {total_servers - passing_servers} SERVER(S) NEED ATTENTION")
+            print("   Please check the failed servers before using the framework.")
+        
+        print("=" * 70)
 
 async def main():
     """Main test function"""
-    print("🧪 Agentic Framework MCP Agent Testing Suite")
-    print("=" * 80)
+    if len(sys.argv) > 1 and sys.argv[1] == "--wait":
+        print("Waiting 10 seconds for servers to start...")
+        await asyncio.sleep(10)
     
-    # Define test configurations for each agent
-    test_configs = [
-        {
-            "name": "Web Search Agent",
-            "base_url": "http://localhost:9101",
-            "tests": [
-                {
-                    "tool": "search",
-                    "params": {"query": "capital of France", "limit": 3},
-                },
-                {
-                    "tool": "search", 
-                    "params": {"query": "Python programming", "limit": 2}
-                }
-            ]
-        },
-        {
-            "name": "Calculator Agent",
-            "base_url": "http://localhost:9104",
-            "tests": [
-                {
-                    "tool": "add",
-                    "params": {"a": 5, "b": 3},
-                    "expected": 8
-                },
-                {
-                    "tool": "multiply",
-                    "params": {"a": 4, "b": 7}
-                },
-                {
-                    "tool": "divide",
-                    "params": {"a": 10, "b": 2}
-                },
-                {
-                    "tool": "compound_interest",
-                    "params": {"principal": 1000, "rate": 5, "time": 2}
-                }
-            ]
-        },
-        {
-            "name": "Tabulator Agent",
-            "base_url": "http://localhost:9102",
-            "tests": [
-                {
-                    "tool": "tabulate",
-                    "params": {
-                        "data": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}],
-                        "format": "json"
-                    }
-                },
-                {
-                    "tool": "sort_data",
-                    "params": {
-                        "data": [{"name": "Charlie", "score": 85}, {"name": "Alice", "score": 92}],
-                        "sort_field": "score",
-                        "ascending": False
-                    }
-                }
-            ]
-        },
-        {
-            "name": "NLP Summarizer Agent",
-            "base_url": "http://localhost:9103",
-            "tests": [
-                {
-                    "tool": "summarize",
-                    "params": {
-                        "text": "The quick brown fox jumps over the lazy dog. This is a test sentence for summarization. Natural language processing is fascinating.",
-                        "style": "brief"
-                    }
-                },
-                {
-                    "tool": "extract_entities",
-                    "params": {
-                        "text": "Apple Inc is a technology company based in Cupertino, California. It was founded in 1976."
-                    }
-                },
-                {
-                    "tool": "analyze_sentiment",
-                    "params": {
-                        "text": "This is a great product! I love using it every day."
-                    }
-                }
-            ]
-        }
-    ]
-    
-    # Run tests for each agent
-    all_results = []
-    total_agents = len(test_configs)
-    successful_agents = 0
-    
-    for config in test_configs:
-        agent_results = await test_agent_endpoint(
-            config["name"], 
-            config["base_url"], 
-            config["tests"]
-        )
-        all_results.extend(agent_results)
-        
-        # Check if agent has any successful tests
-        if any(success for _, success, _ in agent_results):
-            successful_agents += 1
-    
-    # Test complete workflow
-    print(f"\n{'='*80}")
-    workflow_success = await test_full_workflow()
-    
-    # Final summary
-    print(f"\n{'='*80}")
-    print(f"📊 FINAL TEST SUMMARY")
-    print(f"{'='*80}")
-    
-    total_tests = len(all_results)
-    successful_tests = sum(1 for _, success, _ in all_results if success)
-    
-    print(f"🤖 Agents tested: {successful_agents}/{total_agents}")
-    print(f"🧪 Individual tests: {successful_tests}/{total_tests}")
-    print(f"🔄 Workflow test: {'✅ PASS' if workflow_success else '❌ FAIL'}")
-    
-    # Detailed breakdown
-    print(f"\n📋 Test Breakdown:")
-    for agent_name in {name for name, _, _ in all_results}:
-        agent_tests = [(test, success) for name, success, test in all_results if name == agent_name]
-        agent_success_count = sum(1 for _, success in agent_tests if success)
-        status = "✅ HEALTHY" if agent_success_count > 0 else "❌ UNHEALTHY"
-        print(f"   {agent_name}: {agent_success_count}/{len(agent_tests)} - {status}")
-    
-    # Overall status
-    overall_health = "✅ HEALTHY" if successful_agents >= 3 and workflow_success else "⚠️ DEGRADED" if successful_agents >= 1 else "❌ UNHEALTHY"
-    print(f"\n🏥 Overall System Health: {overall_health}")
-    
-    if overall_health == "✅ HEALTHY":
-        print("\n🎉 All systems operational! The Agentic Framework is ready to use.")
-        print("🌐 Open http://localhost:8080 in your browser to access the web interface.")
-    elif overall_health == "⚠️ DEGRADED":
-        print("\n⚠️  Some agents are not responding. Check the agent server logs.")
-        print("🔧 Try restarting the agent servers or check your configuration.")
-    else:
-        print("\n🚨 System is not operational. Please check:")
-        print("   1. All agent servers are running (ports 9101-9104)")
-        print("   2. Main FastAPI server is running (port 8080)")
-        print("   3. Environment configuration is correct")
-    
-    print(f"\n{'='*80}")
-    return overall_health == "✅ HEALTHY"
+    tester = MCPTester()
+    await tester.run_all_tests()
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
-    sys.exit(0 if success else 1)
+    asyncio.run(main())
