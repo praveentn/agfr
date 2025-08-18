@@ -1,10 +1,11 @@
-# modules/search_engine.py
+# agentic/modules/search_engine.py
 import requests
 import time
 import json
 import re
 import os
 import glob
+import logging
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin, urlparse
 from selenium import webdriver
@@ -17,12 +18,69 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 from bs4 import BeautifulSoup
 import sys
 import ssl
+import functools
+from urllib.parse import urlparse
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-from config import SEARCH_CONFIG, SCRAPING_CONFIG, get_error_message, logger
-from utils import sanitize_url, extract_domain, rate_limit
+# Inline configuration to avoid missing imports
+SEARCH_CONFIG = {
+    'use_selenium': True,
+    'selenium_headless': True,
+    'search_timeout': 30,
+    'bing_api_key': os.getenv('BING_API_KEY'),
+    'google_api_key': os.getenv('GOOGLE_API_KEY'),
+    'google_cse_id': os.getenv('GOOGLE_CSE_ID'),
+    'serpapi_key': os.getenv('SERPAPI_KEY'),
+}
+
+SCRAPING_CONFIG = {
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'request_delay': 1.0,
+    'allowed_domains': [
+        'wikipedia.org', 'github.com', 'stackoverflow.com', 'medium.com',
+        'techcrunch.com', 'reuters.com', 'bloomberg.com', 'forbes.com'
+    ]
+}
+
+def get_error_message(error_type: str) -> str:
+    """Get user-friendly error message"""
+    error_messages = {
+        'connection_error': 'Unable to connect to the search service',
+        'timeout_error': 'Search request timed out',
+        'rate_limit_error': 'Search rate limit exceeded',
+        'api_error': 'Search API error occurred',
+        'parsing_error': 'Error parsing search results'
+    }
+    return error_messages.get(error_type, 'An unknown error occurred')
+
+def rate_limit(calls: int, period: int):
+    """Rate limiting decorator"""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Simple rate limiting implementation
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def sanitize_url(url: str) -> str:
+    """Sanitize URL"""
+    if not url:
+        return ""
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    return url
+
+def extract_domain(url: str) -> str:
+    """Extract domain from URL"""
+    try:
+        parsed = urlparse(url)
+        return parsed.netloc
+    except:
+        return "unknown"
 
 class WebSearchEngine:
     """Comprehensive web search engine with multiple search providers, Selenium support, and local file fallback"""
@@ -132,15 +190,7 @@ class WebSearchEngine:
                     except Exception as e:
                         logger.warning(f"SerpAPI search failed: {e}")
                 
-                # Method 4: Selenium-based search (fallback) - Disabled due to repeated failures
-                # if not results and self.driver:
-                #     try:
-                #         selenium_results = self._search_with_selenium(search_query, max_results//2)
-                #         results.extend(selenium_results)
-                #     except Exception as e:
-                #         logger.warning(f"Selenium search failed: {e}")
-                
-                # Method 5: Direct web scraping (with SSL error handling)
+                # Method 4: Direct web scraping (with SSL error handling)
                 if not results:
                     try:
                         scraping_results = self._search_with_scraping(search_query, max_results//2)
@@ -505,7 +555,6 @@ class WebSearchEngine:
             logger.error(f"SerpAPI search failed: {e}")
             return []
 
-    # Keep all existing helper methods but add missing ones
     def _generate_search_queries(self, query: str, search_type: str) -> List[str]:
         """Generate multiple search queries based on the input type"""
         base_queries = []

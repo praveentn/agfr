@@ -1,14 +1,17 @@
 # agentic/agents/local/tabulator_server.py
 import json
-import re
 import csv
 import io
-from typing import Dict, List, Any, Union
 import logging
-
+from typing import Dict, List, Any, Union
 import pandas as pd
 from fastmcp import FastMCP
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create MCP server
 mcp = FastMCP("Tabulator Server")
 
 @mcp.tool()
@@ -16,26 +19,34 @@ def tabulate(data: Union[str, List, Dict], fields: List[str] = None, format: str
     """
     Convert input data into structured table format (JSON, CSV, or HTML).
     Handles various input formats: text, JSON, search results, summaries.
+    
+    Args:
+        data: Input data to tabulate (string, list, or dict)
+        fields: Specific fields to extract/display (optional)
+        format: Output format - json, csv, or html
+    
+    Returns:
+        Dictionary with tabulated data and metadata
     """
     try:
-        print(f"Tabulating data: type={type(data)}, format={format}")
+        logger.info(f"Tabulating data: type={type(data)}, format={format}")
         
         # Parse and normalize input data
         if isinstance(data, str):
             try:
                 # Try to parse as JSON first
                 parsed = json.loads(data)
-                print("Parsed data as JSON")
+                logger.info("Parsed data as JSON")
             except json.JSONDecodeError:
                 # Handle text data
                 parsed = _extract_data_from_text(data, fields)
-                print(f"Extracted {len(parsed)} items from text")
+                logger.info(f"Extracted {len(parsed)} items from text")
         else:
             parsed = data
 
         # Normalize to list of dictionaries
         table_data = _normalize_to_table(parsed)
-        print(f"Normalized to {len(table_data)} table rows")
+        logger.info(f"Normalized to {len(table_data)} table rows")
 
         # Filter and organize fields
         if fields:
@@ -53,13 +64,123 @@ def tabulate(data: Union[str, List, Dict], fields: List[str] = None, format: str
             return _format_as_json(table_data, fields)
 
     except Exception as e:
-        print(f"Tabulation error: {e}")
+        logger.error(f"Tabulation error: {e}")
         return {
             "table": [],
             "error": str(e),
             "format": format,
             "row_count": 0,
-            "columns": []
+            "columns": [],
+            "success": False
+        }
+
+@mcp.tool()
+def sort_data(data: Union[str, List[Dict]], sort_field: str, ascending: bool = True) -> Dict[str, Any]:
+    """Sort tabular data by specified field."""
+    try:
+        logger.info(f"Sorting data by field: {sort_field}, ascending: {ascending}")
+        
+        # Parse data
+        if isinstance(data, str):
+            parsed_data = json.loads(data)
+        else:
+            parsed_data = data
+        
+        table_data = _normalize_to_table(parsed_data)
+        
+        if not table_data:
+            return {"table": [], "row_count": 0, "columns": [], "success": False}
+        
+        # Sort data
+        if sort_field in table_data[0]:
+            sorted_data = sorted(
+                table_data, 
+                key=lambda x: x.get(sort_field, ""), 
+                reverse=not ascending
+            )
+        else:
+            sorted_data = table_data
+        
+        return {
+            "table": sorted_data,
+            "format": "json",
+            "row_count": len(sorted_data),
+            "columns": list(sorted_data[0].keys()) if sorted_data else [],
+            "sorted_by": sort_field,
+            "ascending": ascending,
+            "success": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Sort failed: {e}")
+        return {
+            "table": [],
+            "error": str(e),
+            "format": "json",
+            "row_count": 0,
+            "success": False
+        }
+
+@mcp.tool()
+def filter_data(data: Union[str, List[Dict]], filter_field: str, filter_value: str, operator: str = "contains") -> Dict[str, Any]:
+    """Filter tabular data based on field value."""
+    try:
+        logger.info(f"Filtering data: field={filter_field}, value={filter_value}, operator={operator}")
+        
+        # Parse data
+        if isinstance(data, str):
+            parsed_data = json.loads(data)
+        else:
+            parsed_data = data
+        
+        table_data = _normalize_to_table(parsed_data)
+        original_count = len(table_data)
+        
+        # Apply filter
+        filtered_data = []
+        for row in table_data:
+            field_value = str(row.get(filter_field, "")).lower()
+            filter_val_lower = str(filter_value).lower()
+            
+            match = False
+            if operator == "contains":
+                match = filter_val_lower in field_value
+            elif operator == "equals":
+                match = field_value == filter_val_lower
+            elif operator == "starts_with":
+                match = field_value.startswith(filter_val_lower)
+            elif operator == "greater_than":
+                try:
+                    match = float(field_value) > float(filter_value)
+                except ValueError:
+                    match = field_value > filter_val_lower
+            elif operator == "less_than":
+                try:
+                    match = float(field_value) < float(filter_value)
+                except ValueError:
+                    match = field_value < filter_val_lower
+            
+            if match:
+                filtered_data.append(row)
+        
+        return {
+            "table": filtered_data,
+            "format": "json",
+            "row_count": len(filtered_data),
+            "columns": list(filtered_data[0].keys()) if filtered_data else [],
+            "filter_applied": f"{filter_field} {operator} {filter_value}",
+            "original_count": original_count,
+            "success": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Filter failed: {e}")
+        return {
+            "table": [],
+            "error": str(e),
+            "format": "json",
+            "row_count": 0,
+            "success": False
         }
 
 def _normalize_to_table(data: Any) -> List[Dict]:
@@ -205,7 +326,8 @@ def _format_as_json(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]
         "table": table_data,
         "format": "json",
         "row_count": len(table_data),
-        "columns": fields or (list(table_data[0].keys()) if table_data else [])
+        "columns": fields or (list(table_data[0].keys()) if table_data else []),
+        "success": True
     }
 
 def _format_as_csv(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]:
@@ -215,7 +337,8 @@ def _format_as_csv(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]:
             "table": "",
             "format": "csv", 
             "row_count": 0,
-            "columns": []
+            "columns": [],
+            "success": True
         }
     
     # Use pandas for clean CSV generation
@@ -237,7 +360,8 @@ def _format_as_csv(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]:
         "table": csv_output,
         "format": "csv",
         "row_count": len(table_data),
-        "columns": list(df.columns)
+        "columns": list(df.columns),
+        "success": True
     }
 
 def _format_as_html(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]:
@@ -247,7 +371,8 @@ def _format_as_html(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]
             "table": "<p>No data to display</p>",
             "format": "html",
             "row_count": 0,
-            "columns": []
+            "columns": [],
+            "success": True
         }
     
     df = pd.DataFrame(table_data)
@@ -274,53 +399,62 @@ def _format_as_html(table_data: List[Dict], fields: List[str]) -> Dict[str, Any]
         "table": html_output,
         "format": "html", 
         "row_count": len(table_data),
-        "columns": list(df.columns)
+        "columns": list(df.columns),
+        "success": True
     }
 
 @mcp.tool()
-def sort_data(data: Union[str, List[Dict]], sort_field: str, ascending: bool = True) -> Dict[str, Any]:
-    """Sort tabular data by specified field."""
-    try:
-        # Parse data
-        if isinstance(data, str):
-            parsed_data = json.loads(data)
-        else:
-            parsed_data = data
-        
-        table_data = _normalize_to_table(parsed_data)
-        
-        if not table_data:
-            return {"table": [], "row_count": 0, "columns": []}
-        
-        # Sort data
-        if sort_field in table_data[0]:
-            sorted_data = sorted(
-                table_data, 
-                key=lambda x: x.get(sort_field, ""), 
-                reverse=not ascending
-            )
-        else:
-            sorted_data = table_data
-        
-        return {
-            "table": sorted_data,
-            "format": "json",
-            "row_count": len(sorted_data),
-            "columns": list(sorted_data[0].keys()) if sorted_data else [],
-            "sorted_by": sort_field,
-            "ascending": ascending
+def health() -> Dict[str, Any]:
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "server": "Tabulator Server",
+        "timestamp": __import__('time').time(),
+        "available_formats": ["json", "csv", "html"]
+    }
+
+@mcp.tool()
+def get_tools() -> List[Dict[str, Any]]:
+    """Get list of available tools"""
+    return [
+        {
+            "name": "tabulate",
+            "description": "Convert data into structured table format",
+            "parameters": {
+                "data": "string|array|object - Data to tabulate",
+                "fields": "array (optional) - Specific fields to extract",
+                "format": "string (optional) - Output format: json, csv, html"
+            }
+        },
+        {
+            "name": "sort_data",
+            "description": "Sort tabular data by specified field",
+            "parameters": {
+                "data": "string|array - Data to sort",
+                "sort_field": "string - Field to sort by",
+                "ascending": "boolean (optional) - Sort order"
+            }
+        },
+        {
+            "name": "filter_data",
+            "description": "Filter tabular data based on field value",
+            "parameters": {
+                "data": "string|array - Data to filter",
+                "filter_field": "string - Field to filter on",
+                "filter_value": "string - Value to filter for",
+                "operator": "string (optional) - Filter operator: contains, equals, starts_with, greater_than, less_than"
+            }
         }
-        
-    except Exception as e:
-        return {
-            "table": [],
-            "error": str(e),
-            "format": "json",
-            "row_count": 0
-        }
+    ]
 
 if __name__ == "__main__":
-    print("Starting Tabulator Server on port 9102...")
+    print("=" * 60)
+    print("📊 Starting Tabulator MCP Server")
+    print("=" * 60)
+    print(f"🌐 Port: 9102")
+    print(f"⚡ Server Name: Tabulator Server")
+    print(f"🔧 Available Formats: JSON, CSV, HTML")
+    print("=" * 60)
     
-    # Use sync run to avoid asyncio conflicts
+    # Run the server
     mcp.run(transport="http", host="0.0.0.0", port=9102)

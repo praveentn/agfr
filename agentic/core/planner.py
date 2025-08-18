@@ -9,6 +9,99 @@ from .llm_client import llm_client
 
 logger = logging.getLogger(__name__)
 
+class SystemQueryHandler:
+    """Handle system-level queries that don't require agent orchestration"""
+    
+    def __init__(self):
+        self.system_patterns = {
+            "list_tools": [
+                "list tools", "available tools", "what tools", "show tools",
+                "list available tools", "what tools are available", "show me tools"
+            ],
+            "list_agents": [
+                "list agents", "available agents", "what agents", "show agents",
+                "list available agents", "what agents are available", "show me agents"
+            ],
+            "list_workflows": [
+                "list workflows", "available workflows", "what workflows", "show workflows",
+                "list available workflows", "what workflows are available"
+            ],
+            "system_status": [
+                "system status", "health check", "status", "how are you",
+                "are you working", "system health"
+            ],
+            "help": [
+                "help", "what can you do", "how to use", "instructions",
+                "what are your capabilities", "usage"
+            ]
+        }
+    
+    def is_system_query(self, query: str) -> Optional[str]:
+        """Check if query is a system query and return the type"""
+        query_lower = query.lower().strip()
+        
+        for query_type, patterns in self.system_patterns.items():
+            for pattern in patterns:
+                if pattern in query_lower:
+                    return query_type
+        
+        return None
+    
+    def handle_system_query(self, query_type: str, query: str) -> DAG:
+        """Create a simple DAG that returns system information"""
+        
+        if query_type == "list_tools":
+            # Create a simple node that lists all tools
+            node = Node(
+                id="list_all_tools",
+                agent="system",
+                tool="list_tools",
+                params={"include_details": True},
+                description="List all available tools across agents"
+            )
+        elif query_type == "list_agents":
+            node = Node(
+                id="list_all_agents",
+                agent="system", 
+                tool="list_agents",
+                params={"include_health": True},
+                description="List all available agents"
+            )
+        elif query_type == "list_workflows":
+            node = Node(
+                id="list_all_workflows",
+                agent="system",
+                tool="list_workflows", 
+                params={},
+                description="List all available workflows"
+            )
+        elif query_type == "system_status":
+            node = Node(
+                id="system_status",
+                agent="system",
+                tool="system_status",
+                params={},
+                description="Get system health and status"
+            )
+        else:  # help
+            node = Node(
+                id="show_help",
+                agent="system",
+                tool="help",
+                params={"query": query},
+                description="Show help and capabilities"
+            )
+        
+        return DAG(
+            nodes=[node],
+            metadata={
+                "intent": "system_query",
+                "query": query,
+                "system_query_type": query_type,
+                "generated": True
+            }
+        )
+
 class IntentClassifier:
     def __init__(self):
         self.intent_patterns = {
@@ -30,10 +123,16 @@ class IntentClassifier:
             ],
             "sql_query": ["sql", "database", "query", "select", "table", "records"]
         }
+        self.system_handler = SystemQueryHandler()
     
     async def classify(self, query: str) -> str:
         """Classify user intent from query using both rules and LLM"""
         query_lower = query.lower()
+        
+        # Check for system queries first
+        system_query_type = self.system_handler.is_system_query(query)
+        if system_query_type:
+            return "system_query"
         
         # Rule-based classification first (fast)
         rule_based_intent = self._rule_based_classify(query_lower)
@@ -76,10 +175,17 @@ class IntentClassifier:
 
 class PlanGenerator:
     def __init__(self):
-        pass
+        self.system_handler = SystemQueryHandler()
     
     async def generate_dynamic_plan(self, intent: str, query: str) -> DAG:
         """Generate execution plan using LLM"""
+        
+        # Handle system queries first
+        if intent == "system_query":
+            system_query_type = self.system_handler.is_system_query(query)
+            if system_query_type:
+                return self.system_handler.handle_system_query(system_query_type, query)
+        
         if not llm_client or not llm_client.client:
             return self._fallback_plan_generation(intent, query)
         
@@ -105,6 +211,8 @@ class PlanGenerator:
             3. Use descriptive node IDs
             4. Parameters can reference previous results with {{{{results.node_id.data}}}}
             5. For parallel groups, use {{{{results.group_name.combined}}}}
+            6. NEVER use agent "none" - always specify a valid agent name from the list above
+            7. Every node must have a valid agent that exists in the available agents list
             
             Return only valid JSON in this format:
             {{
@@ -123,7 +231,7 @@ class PlanGenerator:
             """
             
             messages = [
-                {"role": "system", "content": "You are a workflow planner. Generate efficient execution plans."},
+                {"role": "system", "content": "You are a workflow planner. Generate efficient execution plans using only the available agents and tools provided."},
                 {"role": "user", "content": plan_prompt}
             ]
             
@@ -134,9 +242,25 @@ class PlanGenerator:
                     json_match = re.search(r'\{.*\}', response, re.DOTALL)
                     if json_match:
                         plan_data = json.loads(json_match.group())
-                        nodes = [Node(**node_data) for node_data in plan_data.get("nodes", [])]
-                        logger.info(f"Generated dynamic plan with {len(nodes)} nodes")
-                        return DAG(nodes=nodes, metadata={"intent": intent, "query": query, "generated": True})
+                        nodes_data = plan_data.get("nodes", [])
+                        
+                        # Validate that all nodes have valid agents
+                        valid_nodes = []
+                        available_agent_names = {agent.name for agent in agents if agent.enabled}
+                        
+                        for node_data in nodes_data:
+                            agent_name = node_data.get("agent")
+                            if agent_name in available_agent_names:
+                                valid_nodes.append(Node(**node_data))
+                            else:
+                                logger.warning(f"Skipping node with invalid agent: {agent_name}")
+                        
+                        if valid_nodes:
+                            logger.info(f"Generated dynamic plan with {len(valid_nodes)} valid nodes")
+                            return DAG(nodes=valid_nodes, metadata={"intent": intent, "query": query, "generated": True})
+                        else:
+                            logger.warning("No valid nodes in generated plan, falling back to template")
+                            
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse LLM-generated plan: {e}")
             
@@ -156,6 +280,13 @@ class PlanGenerator:
             return self._create_analysis_plan(query)
         elif intent == "calculation":
             return self._create_calculation_plan(query)
+        elif intent == "system_query":
+            # Fallback system query handling
+            system_query_type = self.system_handler.is_system_query(query)
+            if system_query_type:
+                return self.system_handler.handle_system_query(system_query_type, query)
+            else:
+                return self._create_default_plan(query)
         else:
             return self._create_default_plan(query)
     
@@ -333,6 +464,10 @@ class Planner:
         # Classify intent
         intent = await self.classifier.classify(request.text)
         logger.info(f"Classified intent: {intent}")
+        
+        # Handle system queries
+        if intent == "system_query":
+            return await self.generator.generate_dynamic_plan(intent, request.text)
         
         # Check for intent-based workflow
         workflows = registry.list_workflows()

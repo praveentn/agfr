@@ -4,122 +4,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic Framework - AI Workflow Assistant</title>
+    <title>Agentic Framework - Enterprise AI Workflow Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --light-bg: #f8f9fa;
-            --dark-bg: #34495e;
-            --chat-user: #e3f2fd;
-            --chat-assistant: #f5f5f5;
+            --primary-color: #1e3a8a;
+            --secondary-color: #3b82f6;
+            --accent-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --light-bg: #f8fafc;
+            --dark-bg: #1e293b;
+            --chat-user: #dbeafe;
+            --chat-assistant: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-muted: #64748b;
         }
 
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #1e293b;
         }
 
         .main-container {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
             margin: 20px auto;
-            max-width: 1400px;
-            padding: 0;
+            max-width: 1600px;
             overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .navbar {
             background: linear-gradient(135deg, var(--primary-color), var(--dark-bg));
-            border-radius: 20px 20px 0 0;
-            padding: 20px 30px;
+            padding: 24px 32px;
+            border-radius: 24px 24px 0 0;
         }
 
         .navbar-brand {
             font-weight: 700;
             font-size: 1.8rem;
             color: white !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-tabs {
+            border-bottom: 2px solid var(--border-color);
+            margin: 20px 20px 0 20px;
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 12px 24px;
+            margin-right: 8px;
+            border-radius: 12px 12px 0 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background: var(--light-bg);
+            color: var(--primary-color);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .tab-content {
+            padding: 20px;
+            min-height: 70vh;
         }
 
         .chat-container {
-            height: 70vh;
+            height: 65vh;
             display: flex;
             flex-direction: column;
             background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 24px;
             background: linear-gradient(to bottom, #fafafa, #ffffff);
         }
 
         .message {
-            margin-bottom: 20px;
-            animation: fadeInUp 0.3s ease;
-        }
-
-        .message-user {
-            text-align: right;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.4s ease;
         }
 
         .message-user .message-content {
             background: var(--chat-user);
-            color: #1976d2;
+            color: var(--primary-color);
             border-radius: 20px 20px 5px 20px;
-            padding: 15px 20px;
+            padding: 16px 20px;
             display: inline-block;
             max-width: 80%;
-            box-shadow: 0 2px 10px rgba(25, 118, 210, 0.1);
-        }
-
-        .message-assistant {
-            text-align: left;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            font-weight: 500;
         }
 
         .message-assistant .message-content {
             background: var(--chat-assistant);
-            color: var(--primary-color);
+            color: var(--dark-bg);
             border-radius: 20px 20px 20px 5px;
-            padding: 15px 20px;
+            padding: 16px 20px;
             display: inline-block;
-            max-width: 80%;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .message-system {
-            text-align: center;
+            max-width: 85%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .message-system .message-content {
-            background: rgba(52, 152, 219, 0.1);
-            color: var(--secondary-color);
-            border-radius: 15px;
-            padding: 10px 15px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border-radius: 16px;
+            padding: 12px 16px;
             display: inline-block;
             font-size: 0.9rem;
-            border: 1px solid rgba(52, 152, 219, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            font-weight: 500;
         }
 
         .typing-indicator {
             display: none;
-            text-align: left;
-        }
-
-        .typing-indicator .message-content {
-            background: var(--chat-assistant);
-            border-radius: 20px 20px 20px 5px;
-            padding: 15px 20px;
-            display: inline-block;
         }
 
         .typing-dots {
@@ -141,32 +161,29 @@
 
         @keyframes typing {
             0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-            30% { transform: translateY(-10px); opacity: 1; }
+            30% { transform: translateY(-8px); opacity: 1; }
         }
 
         .chat-input-container {
-            padding: 20px;
+            padding: 24px;
             background: white;
-            border-top: 1px solid #eee;
-            border-radius: 0 0 20px 20px;
-        }
-
-        .chat-input {
-            position: relative;
+            border-top: 1px solid var(--border-color);
+            border-radius: 0 0 16px 16px;
         }
 
         .chat-input textarea {
-            border-radius: 25px;
-            border: 2px solid #e9ecef;
-            padding: 15px 60px 15px 20px;
+            border-radius: 20px;
+            border: 2px solid var(--border-color);
+            padding: 16px 60px 16px 20px;
             resize: none;
             transition: all 0.3s ease;
-            background: #fafafa;
+            background: var(--light-bg);
+            font-weight: 500;
         }
 
         .chat-input textarea:focus {
             border-color: var(--secondary-color);
-            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             background: white;
         }
 
@@ -178,141 +195,99 @@
             background: var(--secondary-color);
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             color: white;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .send-button:hover:not(:disabled) {
-            background: #2980b9;
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .send-button:disabled {
-            background: #bdc3c7;
-            cursor: not-allowed;
+            background: var(--primary-color);
+            transform: translateY(-50%) scale(1.05);
         }
 
         .quick-actions {
-            margin-top: 15px;
+            margin-top: 16px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
         .quick-action {
-            background: rgba(52, 152, 219, 0.1);
-            border: 1px solid rgba(52, 152, 219, 0.3);
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
             border-radius: 20px;
-            padding: 8px 15px;
+            padding: 8px 16px;
             font-size: 0.9rem;
             color: var(--secondary-color);
             cursor: pointer;
             transition: all 0.3s ease;
+            font-weight: 500;
         }
 
         .quick-action:hover {
             background: var(--secondary-color);
             color: white;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
-        .sidebar {
+        .agent-card, .workflow-card {
             background: white;
-            border-radius: 0 20px 20px 0;
-            height: 70vh;
-            overflow-y: auto;
-            border-left: 1px solid #eee;
-        }
-
-        .sidebar-section {
+            border-radius: 16px;
             padding: 20px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .sidebar-title {
-            font-weight: 600;
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .agent-item {
-            background: rgba(52, 152, 219, 0.05);
-            border-radius: 10px;
-            padding: 12px;
-            margin: 8px 0;
-            border-left: 4px solid var(--secondary-color);
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
             transition: all 0.3s ease;
+            cursor: pointer;
         }
 
-        .agent-item:hover {
-            background: rgba(52, 152, 219, 0.1);
-            transform: translateX(5px);
-        }
-
-        .agent-name {
-            font-weight: 600;
-            color: var(--primary-color);
-            font-size: 0.95rem;
+        .agent-card:hover, .workflow-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-color: var(--secondary-color);
         }
 
         .agent-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-size: 0.8rem;
-            margin-top: 5px;
+            font-weight: 600;
         }
 
-        .status-online {
+        .status-healthy {
+            background: rgba(16, 185, 129, 0.1);
             color: var(--success-color);
         }
 
-        .status-offline {
+        .status-unhealthy {
+            background: rgba(239, 68, 68, 0.1);
             color: var(--accent-color);
         }
 
-        .workflow-item {
-            background: rgba(39, 174, 96, 0.05);
-            border-radius: 10px;
-            padding: 12px;
-            margin: 8px 0;
-            border-left: 4px solid var(--success-color);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .workflow-item:hover {
-            background: rgba(39, 174, 96, 0.1);
-            transform: translateX(5px);
-        }
-
-        .workflow-name {
-            font-weight: 600;
-            color: var(--primary-color);
-            font-size: 0.95rem;
-        }
-
-        .workflow-description {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 3px;
+        .status-loading {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
         }
 
         .result-content {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 10px;
-            border: 1px solid #e9ecef;
+            background: var(--light-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+            border: 1px solid var(--border-color);
         }
 
         .result-table {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            margin-top: 10px;
+            margin-top: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
         .result-table table {
@@ -323,34 +298,78 @@
             background: var(--primary-color);
             color: white;
             border: none;
-            padding: 12px;
+            padding: 16px;
+            font-weight: 600;
         }
 
         .result-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sql-container {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .sql-header {
+            background: linear-gradient(135deg, var(--warning-color), #fbbf24);
+            color: white;
+            padding: 20px 24px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .sql-content {
+            padding: 24px;
+        }
+
+        .sql-textarea {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .sql-textarea:focus {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .sql-results {
+            max-height: 500px;
+            overflow: auto;
+            margin-top: 20px;
         }
 
         .execution-status {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-            padding: 10px 15px;
-            background: rgba(52, 152, 219, 0.1);
-            border-radius: 10px;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
             border-left: 4px solid var(--secondary-color);
         }
 
         .status-icon {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 12px;
             color: white;
+            font-weight: bold;
         }
 
         .status-running .status-icon {
@@ -366,10 +385,54 @@
             background: var(--accent-color);
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .welcome-message {
+            text-align: center;
+            padding: 60px 40px;
+            color: var(--text-muted);
+        }
+
+        .welcome-message h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .responsive-table {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .pagination-info {
+            background: var(--light-bg);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .query-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: var(--light-bg);
+        }
+
+        .badge-custom {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
 
         @keyframes fadeInUp {
@@ -383,75 +446,28 @@
             }
         }
 
-        .welcome-message {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
-        }
-
-        .welcome-message h3 {
-            color: var(--primary-color);
-            margin-bottom: 15px;
-        }
-
-        .admin-panel {
-            background: white;
-            border-radius: 15px;
-            margin-top: 20px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .admin-header {
-            background: linear-gradient(135deg, var(--warning-color), #f1c40f);
-            color: white;
-            padding: 15px 20px;
-            font-weight: 600;
-        }
-
-        .sql-container {
-            padding: 20px;
-        }
-
-        .sql-textarea {
-            background: #2c3e50;
-            color: #ecf0f1;
-            border: none;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-
-        .sql-textarea:focus {
-            background: #2c3e50;
-            color: #ecf0f1;
-            box-shadow: 0 0 0 0.2rem rgba(243, 156, 18, 0.25);
-        }
-
-        .sql-results {
-            max-height: 400px;
-            overflow: auto;
-            margin-top: 15px;
-        }
-
-        .responsive-table {
-            overflow-x: auto;
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         @media (max-width: 768px) {
             .main-container {
                 margin: 10px;
-                border-radius: 15px;
+                border-radius: 16px;
             }
             
             .chat-container {
                 height: 60vh;
             }
             
-            .sidebar {
-                border-left: none;
-                border-top: 1px solid #eee;
-                border-radius: 0;
+            .navbar {
+                padding: 16px 20px;
+            }
+            
+            .tab-content {
+                padding: 16px;
             }
         }
     </style>
@@ -464,40 +480,64 @@
             <div class="container-fluid d-flex justify-content-between align-items-center">
                 <a class="navbar-brand" href="#">
                     <i class="fas fa-robot me-2"></i>
-                    Agentic AI Assistant
+                    Agentic Framework
                 </a>
                 <div class="d-flex align-items-center gap-3">
                     <span class="text-light">
                         <i class="fas fa-circle text-success me-1" id="connectionStatus"></i>
                         <span id="connectionText">Connected</span>
                     </span>
-                    <button class="btn btn-outline-light btn-sm" onclick="showAdminPanel()">
-                        <i class="fas fa-cog me-1"></i> Admin
+                    <button class="btn btn-outline-light btn-sm" onclick="checkSystemStatus()">
+                        <i class="fas fa-heartbeat me-1"></i> Status
                     </button>
                 </div>
             </div>
         </nav>
 
-        <!-- Main Content -->
-        <div class="row g-0">
-            <!-- Chat Area -->
-            <div class="col-lg-8">
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab">
+                    <i class="fas fa-comments me-2"></i>Workflow Assistant
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents-panel" type="button" role="tab">
+                    <i class="fas fa-robot me-2"></i>Agents & Tools
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="workflows-tab" data-bs-toggle="tab" data-bs-target="#workflows-panel" type="button" role="tab">
+                    <i class="fas fa-sitemap me-2"></i>Workflows
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-panel" type="button" role="tab">
+                    <i class="fas fa-cog me-2"></i>Admin
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Chat Panel -->
+            <div class="tab-pane fade show active" id="chat-panel" role="tabpanel">
                 <div class="chat-container">
                     <!-- Messages -->
                     <div class="chat-messages" id="chatMessages">
                         <div class="welcome-message" id="welcomeMessage">
-                            <h3><i class="fas fa-magic me-2"></i>Welcome to your AI Workflow Assistant</h3>
+                            <h3><i class="fas fa-magic me-2"></i>Welcome to your Enterprise AI Assistant</h3>
                             <p>I can help you with market research, data analysis, web searches, calculations, and more!</p>
                             <p>Try asking me something like:</p>
-                            <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
+                            <div class="d-flex justify-content-center gap-2 flex-wrap mt-4">
                                 <span class="quick-action" onclick="setQuickQuery('Do market research on electric vehicles')">
                                     "Do market research on electric vehicles"
                                 </span>
                                 <span class="quick-action" onclick="setQuickQuery('Search for Python best practices')">
                                     "Search for Python best practices"
                                 </span>
-                                <span class="quick-action" onclick="setQuickQuery('Calculate 15% of 1000')">
-                                    "Calculate 15% of 1000"
+                                <span class="quick-action" onclick="setQuickQuery('Calculate compound interest for $10000 at 7% for 5 years')">
+                                    "Calculate compound interest"
                                 </span>
                             </div>
                         </div>
@@ -510,7 +550,7 @@
                                     <span></span>
                                     <span></span>
                                 </div>
-                                <span class="ms-2 text-muted">AI is thinking...</span>
+                                <span class="ms-2 text-muted">AI is processing...</span>
                             </div>
                         </div>
                     </div>
@@ -518,139 +558,154 @@
                     <!-- Input Area -->
                     <div class="chat-input-container">
                         <form id="chatForm">
-                            <div class="chat-input">
+                            <div class="chat-input position-relative">
                                 <textarea 
                                     id="chatInput" 
                                     class="form-control" 
                                     rows="2" 
                                     placeholder="Ask me anything... (e.g., 'Do market research on smartphones')"
-                                    maxlength="1000"></textarea>
+                                    maxlength="2000"></textarea>
                                 <button type="submit" class="send-button" id="sendButton">
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
                             </div>
-                            <div class="quick-actions" id="quickActions">
-                                <span class="quick-action" onclick="setQuickQuery('Analyze the renewable energy market')">Market Analysis</span>
-                                <span class="quick-action" onclick="setQuickQuery('Find information about AI trends 2024')">Web Search</span>
-                                <span class="quick-action" onclick="setQuickQuery('Summarize this data and create a table')">Data Analysis</span>
-                                <span class="quick-action" onclick="setQuickQuery('Calculate compound interest')">Math</span>
+                            <div class="quick-actions">
+                                <span class="quick-action" onclick="setQuickQuery('Analyze the renewable energy market trends')">Market Analysis</span>
+                                <span class="quick-action" onclick="setQuickQuery('Find information about latest AI developments')">Web Search</span>
+                                <span class="quick-action" onclick="setQuickQuery('Create a summary and table from this data')">Data Analysis</span>
+                                <span class="quick-action" onclick="setQuickQuery('Calculate the ROI for this investment')">Mathematics</span>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Sidebar -->
-            <div class="col-lg-4">
-                <div class="sidebar">
-                    <!-- Available Agents -->
-                    <div class="sidebar-section">
-                        <div class="sidebar-title">
-                            <i class="fas fa-robot"></i>
-                            Available Agents
+            <!-- Agents Panel -->
+            <div class="tab-pane fade" id="agents-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4><i class="fas fa-robot me-2"></i>Available Agents</h4>
+                            <button class="btn btn-outline-primary" onclick="refreshAgents()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
                         </div>
                         <div id="agentsList">
-                            <div class="text-center">
-                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                <div class="mt-2 small text-muted">Loading agents...</div>
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <div class="mt-3">Loading agents...</div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Workflows -->
-                    <div class="sidebar-section">
-                        <div class="sidebar-title">
-                            <i class="fas fa-sitemap"></i>
-                            Quick Workflows
-                        </div>
-                        <div id="workflowsList">
-                            <div class="text-center">
-                                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-                                <div class="mt-2 small text-muted">Loading workflows...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity -->
-                    <div class="sidebar-section">
-                        <div class="sidebar-title">
-                            <i class="fas fa-history"></i>
-                            Recent Activity
-                        </div>
-                        <div id="recentActivity">
-                            <div class="text-muted small">No recent activity</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Admin Panel Modal -->
-    <div class="modal fade" id="adminModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title">
-                        <i class="fas fa-shield-alt me-2"></i>
-                        Admin Panel
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- SQL Executor -->
-                    <div class="admin-panel">
-                        <div class="admin-header">
-                            <i class="fas fa-database me-2"></i>
-                            SQL Executor
+            <!-- Workflows Panel -->
+            <div class="tab-pane fade" id="workflows-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4><i class="fas fa-sitemap me-2"></i>Available Workflows</h4>
+                            <button class="btn btn-outline-primary" onclick="refreshWorkflows()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
                         </div>
+                        <div id="workflowsList">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-success" role="status"></div>
+                                <div class="mt-3">Loading workflows...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Panel -->
+            <div class="tab-pane fade" id="admin-panel" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <!-- SQL Executor -->
+                        <div class="sql-container mb-4">
+                            <div class="sql-header">
+                                <i class="fas fa-database me-2"></i>
+                                SQL Executor
+                            </div>
+                            <div class="sql-content">
+                                <form id="sqlForm">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold">SQL Query:</label>
+                                            <textarea 
+                                                id="sqlQuery" 
+                                                class="form-control sql-textarea" 
+                                                rows="6"
+                                                placeholder="SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10;"></textarea>
+                                            <div class="form-check mt-3">
+                                                <input type="checkbox" class="form-check-input" id="confirmDangerous">
+                                                <label class="form-check-label small text-muted">
+                                                    Confirm execution of potentially dangerous operations (DROP, DELETE, etc.)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Quick Queries:</label>
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                                    onclick="setSqlQuery('SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10')">
+                                                    Recent Logs
+                                                </button>
+                                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                                    onclick="setSqlQuery('SELECT * FROM workflow_executions ORDER BY created_at DESC LIMIT 10')">
+                                                    Recent Executions
+                                                </button>
+                                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                                    onclick="setSqlQuery('SELECT name, type FROM sqlite_master WHERE type IN (\'table\', \'view\') ORDER BY name')">
+                                                    Show Tables
+                                                </button>
+                                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                                    onclick="setSqlQuery('SELECT COUNT(*) as total_executions, AVG(execution_time) as avg_time FROM workflow_executions')">
+                                                    Statistics
+                                                </button>
+                                                <hr>
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="reloadRegistry()">
+                                                    <i class="fas fa-sync-alt me-1"></i> Reload Registry
+                                                </button>
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="showDatabaseTables()">
+                                                    <i class="fas fa-table me-1"></i> Browse Tables
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <button type="submit" class="btn btn-warning me-2">
+                                            <i class="fas fa-play me-2"></i>
+                                            Execute SQL
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="clearSqlQuery()">
+                                            <i class="fas fa-eraser me-2"></i>
+                                            Clear
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                                <div class="sql-results" id="sqlResults"></div>
+                            </div>
+                        </div>
+
+                        <!-- System Status -->
                         <div class="sql-container">
-                            <form id="sqlForm">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <label class="form-label">SQL Query:</label>
-                                        <textarea 
-                                            id="sqlQuery" 
-                                            class="form-control sql-textarea" 
-                                            rows="5"
-                                            placeholder="SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10;"></textarea>
-                                        <div class="form-check mt-2">
-                                            <input type="checkbox" class="form-check-input" id="confirmDangerous">
-                                            <label class="form-check-label small">
-                                                Confirm execution of potentially dangerous operations
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Quick Queries:</label>
-                                        <div class="d-grid gap-2">
-                                            <button type="button" class="btn btn-outline-info btn-sm" 
-                                                onclick="setSqlQuery('SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10')">
-                                                Recent Logs
-                                            </button>
-                                            <button type="button" class="btn btn-outline-info btn-sm" 
-                                                onclick="setSqlQuery('SELECT * FROM workflow_executions ORDER BY created_at DESC LIMIT 10')">
-                                                Recent Executions
-                                            </button>
-                                            <button type="button" class="btn btn-outline-info btn-sm" 
-                                                onclick="setSqlQuery('SELECT name FROM sqlite_master WHERE type=\\'table\\'')">
-                                                Show Tables
-                                            </button>
-                                            <button type="button" class="btn btn-outline-success btn-sm" onclick="reloadRegistry()">
-                                                <i class="fas fa-sync-alt me-1"></i> Reload Registry
-                                            </button>
-                                        </div>
+                            <div class="sql-header">
+                                <i class="fas fa-chart-line me-2"></i>
+                                System Status
+                            </div>
+                            <div class="sql-content">
+                                <div id="systemStatus">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <div class="mt-2">Loading system status...</div>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <button type="submit" class="btn btn-warning">
-                                        <i class="fas fa-play me-2"></i>
-                                        Execute SQL
-                                    </button>
-                                </div>
-                            </form>
-                            
-                            <div class="sql-results" id="sqlResults"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -660,6 +715,8 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script>
         // Configuration
         const API_BASE = '/api';
@@ -668,6 +725,7 @@
         // State
         let conversationHistory = [];
         let currentExecution = null;
+        let sqlHistory = [];
 
         // Helper functions
         function makeRequest(url, options = {}) {
@@ -727,7 +785,7 @@
                 const result = data.final_result;
                 
                 if (result.type === 'market_research' && result.findings) {
-                    html += '<h6><i class="fas fa-chart-line me-2"></i>Market Research Results</h6>';
+                    html += '<h6 class="text-primary mb-3"><i class="fas fa-chart-line me-2"></i>Market Research Results</h6>';
                     if (result.findings.length > 0) {
                         html += '<div class="result-table">';
                         html += '<table class="table table-sm mb-0">';
@@ -740,7 +798,7 @@
                         html += '</tbody></table></div>';
                     }
                 } else if (result.type === 'search_results' && result.items) {
-                    html += '<h6><i class="fas fa-search me-2"></i>Search Results</h6>';
+                    html += '<h6 class="text-primary mb-3"><i class="fas fa-search me-2"></i>Search Results</h6>';
                     result.items.slice(0, 5).forEach(item => {
                         html += `
                             <div class="border-start border-3 border-primary ps-3 mb-3">
@@ -751,11 +809,11 @@
                         `;
                     });
                 } else if (typeof result === 'number') {
-                    html += `<h6><i class="fas fa-calculator me-2"></i>Calculation Result</h6>`;
-                    html += `<div class="alert alert-info mb-0"><strong>${result}</strong></div>`;
+                    html += `<h6 class="text-primary mb-3"><i class="fas fa-calculator me-2"></i>Calculation Result</h6>`;
+                    html += `<div class="alert alert-info mb-0"><strong class="fs-4">${result}</strong></div>`;
                 } else {
-                    html += '<h6><i class="fas fa-check-circle me-2"></i>Results</h6>';
-                    html += `<pre class="bg-light p-3 rounded small">${JSON.stringify(result, null, 2)}</pre>`;
+                    html += '<h6 class="text-primary mb-3"><i class="fas fa-check-circle me-2"></i>Results</h6>';
+                    html += `<pre class="bg-light p-3 rounded small"><code>${JSON.stringify(result, null, 2)}</code></pre>`;
                 }
             }
             
@@ -768,7 +826,7 @@
                 html += `
                     <div class="execution-status ${statusClass} mt-3">
                         <div class="status-icon">
-                            <i class="fas fa-${successful === total ? 'check' : (successful > 0 ? 'exclamation' : 'times')}"></i>
+                            <i class="fas fa-${successful === total ? 'check' : (successful > 0 ? 'exclamation-triangle' : 'times')}"></i>
                         </div>
                         <div>
                             <strong>Execution Complete:</strong> ${successful}/${total} steps successful
@@ -794,32 +852,6 @@
         function setQuickQuery(query) {
             document.getElementById('chatInput').value = query;
             document.getElementById('chatInput').focus();
-        }
-
-        function addToRecentActivity(query, success) {
-            const container = document.getElementById('recentActivity');
-            const item = document.createElement('div');
-            item.className = 'small mb-2 p-2 rounded bg-light';
-            item.innerHTML = `
-                <div class="d-flex justify-content-between">
-                    <span class="text-truncate" style="max-width: 200px;" title="${query}">${query}</span>
-                    <i class="fas fa-${success ? 'check text-success' : 'times text-danger'}"></i>
-                </div>
-                <small class="text-muted">${new Date().toLocaleTimeString()}</small>
-            `;
-            
-            container.insertBefore(item, container.firstChild);
-            
-            // Keep only last 5 items
-            while (container.children.length > 6) { // 5 + "No recent activity" message
-                container.removeChild(container.lastChild);
-            }
-            
-            // Remove "No recent activity" message
-            const noActivity = container.querySelector('.text-muted');
-            if (noActivity && noActivity.textContent === 'No recent activity') {
-                noActivity.remove();
-            }
         }
 
         // Chat form handling
@@ -850,7 +882,7 @@
                         text: query,
                         options: {},
                         context: {
-                            conversation_history: conversationHistory.slice(-5) // Last 5 messages
+                            conversation_history: conversationHistory.slice(-5)
                         }
                     })
                 });
@@ -874,18 +906,15 @@
                     
                     addMessage(assistantMessage, 'assistant', result);
                     conversationHistory.push({type: 'assistant', content: assistantMessage});
-                    addToRecentActivity(query, true);
                 } else {
                     const errorMessage = result.error || result.detail || 'Something went wrong. Please try again.';
                     addMessage(`❌ I encountered an error: ${errorMessage}`, 'assistant');
                     conversationHistory.push({type: 'assistant', content: `Error: ${errorMessage}`});
-                    addToRecentActivity(query, false);
                 }
                 
             } catch (error) {
                 showTyping(false);
                 addMessage(`❌ Connection error: ${error.message}`, 'assistant');
-                addToRecentActivity(query, false);
             } finally {
                 sendButton.disabled = false;
                 input.focus();
@@ -901,9 +930,9 @@
         });
 
         // Load agents
-        async function loadAgents() {
+        async function loadAgents(includeHealth = true) {
             try {
-                const response = await makeRequest(`${API_BASE}/agents`);
+                const response = await makeRequest(`${API_BASE}/agents?include_health=${includeHealth}`);
                 const data = await response.json();
                 
                 const container = document.getElementById('agentsList');
@@ -912,21 +941,141 @@
                 if (data.agents && data.agents.length > 0) {
                     data.agents.forEach(agent => {
                         const agentDiv = document.createElement('div');
-                        agentDiv.className = 'agent-item';
+                        agentDiv.className = 'agent-card';
+                        
+                        let healthBadge = '';
+                        if (agent.health) {
+                            const statusClass = agent.health.status === 'healthy' ? 'status-healthy' : 'status-unhealthy';
+                            healthBadge = `<span class="agent-status ${statusClass}">
+                                <i class="fas fa-circle"></i>
+                                ${agent.health.status}
+                            </span>`;
+                        }
+                        
                         agentDiv.innerHTML = `
-                            <div class="agent-name">${agent.name}</div>
-                            <div class="agent-status ${agent.enabled ? 'status-online' : 'status-offline'}">
-                                <i class="fas fa-circle me-1"></i>
-                                ${agent.enabled ? 'Online' : 'Offline'} • ${agent.tools.length} tools
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="mb-0">${agent.name}</h5>
+                                ${healthBadge}
+                            </div>
+                            <p class="text-muted mb-2">${agent.description}</p>
+                            <div class="small">
+                                <strong>Endpoint:</strong> ${agent.endpoint}<br>
+                                <strong>Tools:</strong> ${agent.tools.length} available
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="viewAgentDetails('${agent.name}')">
+                                    <i class="fas fa-eye me-1"></i> View Tools
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="testAgentHealth('${agent.name}')">
+                                    <i class="fas fa-heartbeat me-1"></i> Test Health
+                                </button>
                             </div>
                         `;
+                        
+                        agentDiv.onclick = () => viewAgentDetails(agent.name);
                         container.appendChild(agentDiv);
                     });
                 } else {
-                    container.innerHTML = '<div class="text-muted small">No agents available</div>';
+                    container.innerHTML = '<div class="text-center text-muted py-4">No agents available</div>';
                 }
             } catch (error) {
-                document.getElementById('agentsList').innerHTML = '<div class="text-danger small">Failed to load agents</div>';
+                document.getElementById('agentsList').innerHTML = '<div class="text-danger text-center py-4">Failed to load agents</div>';
+            }
+        }
+
+        async function refreshAgents() {
+            document.getElementById('agentsList').innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-3">Refreshing agents...</div>
+                </div>
+            `;
+            await loadAgents();
+        }
+
+        async function viewAgentDetails(agentName) {
+            try {
+                const response = await makeRequest(`${API_BASE}/agents/${agentName}/tools`);
+                const data = await response.json();
+                
+                let toolsHtml = '';
+                if (data.tools && data.tools.length > 0) {
+                    data.tools.forEach(tool => {
+                        const params = typeof tool.parameters === 'object' ? 
+                            Object.entries(tool.parameters).map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`).join(', ') :
+                            tool.parameters || 'None';
+                        
+                        toolsHtml += `
+                            <div class="border rounded p-3 mb-2">
+                                <h6 class="mb-1">${tool.name}</h6>
+                                <p class="mb-1 small text-muted">${tool.description}</p>
+                                <small class="text-muted">Parameters: ${params}</small>
+                                <div class="mt-2">
+                                    <button class="btn btn-xs btn-outline-primary" onclick="testTool('${agentName}', '${tool.name}')">
+                                        <i class="fas fa-play me-1"></i> Test
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    toolsHtml = '<p class="text-muted">No tools available</p>';
+                }
+                
+                addMessage(`
+                    <strong>🤖 Agent: ${agentName}</strong><br>
+                    <strong>Tools Available:</strong> ${data.tools.length}<br>
+                    <strong>Source:</strong> ${data.source || 'registry'}<br>
+                    <div class="mt-3">${toolsHtml}</div>
+                `, 'system');
+                
+            } catch (error) {
+                addMessage(`❌ Failed to load tools for ${agentName}: ${error.message}`, 'system');
+            }
+        }
+
+        async function testTool(agentName, toolName) {
+            const params = prompt(`Enter parameters for ${toolName} (JSON format):`);
+            if (!params) return;
+            
+            try {
+                const parsedParams = JSON.parse(params);
+                const response = await makeRequest(`${API_BASE}/agents/${agentName}/tools/${toolName}`, {
+                    method: 'POST',
+                    body: JSON.stringify(parsedParams)
+                });
+                
+                const result = await response.json();
+                
+                addMessage(`
+                    <strong>🧪 Tool Test Result</strong><br>
+                    <strong>Agent:</strong> ${agentName}<br>
+                    <strong>Tool:</strong> ${toolName}<br>
+                    <strong>Success:</strong> ${result.result?.success ? '✅ Yes' : '❌ No'}<br>
+                    <pre class="mt-2 bg-light p-2 rounded small"><code>${JSON.stringify(result, null, 2)}</code></pre>
+                `, 'system');
+                
+            } catch (error) {
+                addMessage(`❌ Tool test failed: ${error.message}`, 'system');
+            }
+        }
+
+        async function testAgentHealth(agentName) {
+            try {
+                const response = await makeRequest(`${API_BASE}/agents/${agentName}/health`);
+                const result = await response.json();
+                
+                const statusIcon = result.status === 'healthy' ? '✅' : '❌';
+                addMessage(`
+                    <strong>${statusIcon} Health Check: ${agentName}</strong><br>
+                    <strong>Status:</strong> ${result.status}<br>
+                    <strong>Endpoint:</strong> ${result.endpoint}<br>
+                    <strong>Last Checked:</strong> ${new Date(result.last_checked * 1000).toLocaleString()}<br>
+                    ${result.details ? `<pre class="mt-2 bg-light p-2 rounded small"><code>${JSON.stringify(result.details, null, 2)}</code></pre>` : ''}
+                `, 'system');
+                
+            } catch (error) {
+                addMessage(`❌ Health check failed for ${agentName}: ${error.message}`, 'system');
             }
         }
 
@@ -942,20 +1091,41 @@
                 if (data.workflows && data.workflows.length > 0) {
                     data.workflows.forEach(workflow => {
                         const workflowDiv = document.createElement('div');
-                        workflowDiv.className = 'workflow-item';
+                        workflowDiv.className = 'workflow-card';
                         workflowDiv.onclick = () => runWorkflow(workflow.id);
                         workflowDiv.innerHTML = `
-                            <div class="workflow-name">${workflow.name}</div>
-                            <div class="workflow-description">${workflow.description}</div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="mb-0">${workflow.name}</h5>
+                                <span class="badge badge-custom bg-primary">${workflow.intent}</span>
+                            </div>
+                            <p class="text-muted mb-2">${workflow.description}</p>
+                            <div class="small text-muted">
+                                <strong>Nodes:</strong> ${workflow.nodes} steps
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); runWorkflow('${workflow.id}')">
+                                    <i class="fas fa-play me-1"></i> Run Workflow
+                                </button>
+                            </div>
                         `;
                         container.appendChild(workflowDiv);
                     });
                 } else {
-                    container.innerHTML = '<div class="text-muted small">No workflows available</div>';
+                    container.innerHTML = '<div class="text-center text-muted py-4">No workflows available</div>';
                 }
             } catch (error) {
-                document.getElementById('workflowsList').innerHTML = '<div class="text-danger small">Failed to load workflows</div>';
+                document.getElementById('workflowsList').innerHTML = '<div class="text-danger text-center py-4">Failed to load workflows</div>';
             }
+        }
+
+        async function refreshWorkflows() {
+            document.getElementById('workflowsList').innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-success" role="status"></div>
+                    <div class="mt-3">Refreshing workflows...</div>
+                </div>
+            `;
+            await loadWorkflows();
         }
 
         async function runWorkflow(workflowId) {
@@ -973,26 +1143,23 @@
                 
                 if (response.ok && result.success) {
                     addMessage(`✅ Workflow completed successfully!`, 'assistant', result);
-                    addToRecentActivity(`Workflow: ${workflowId}`, true);
                 } else {
                     addMessage(`❌ Workflow failed: ${result.error || 'Unknown error'}`, 'assistant');
-                    addToRecentActivity(`Workflow: ${workflowId}`, false);
                 }
             } catch (error) {
                 showTyping(false);
                 addMessage(`❌ Connection error: ${error.message}`, 'assistant');
-                addToRecentActivity(`Workflow: ${workflowId}`, false);
             }
         }
 
-        // Admin panel functions
-        function showAdminPanel() {
-            const modal = new bootstrap.Modal(document.getElementById('adminModal'));
-            modal.show();
-        }
-
+        // SQL Functions
         function setSqlQuery(query) {
             document.getElementById('sqlQuery').value = query;
+        }
+
+        function clearSqlQuery() {
+            document.getElementById('sqlQuery').value = '';
+            document.getElementById('sqlResults').innerHTML = '';
         }
 
         document.getElementById('sqlForm').addEventListener('submit', async function(e) {
@@ -1003,12 +1170,20 @@
             
             if (!sqlQuery) return;
             
+            // Add to history
+            if (!sqlHistory.includes(sqlQuery)) {
+                sqlHistory.unshift(sqlQuery);
+                if (sqlHistory.length > 10) sqlHistory = sqlHistory.slice(0, 10);
+            }
+            
             try {
                 const response = await makeRequest(`${API_BASE}/admin/sql`, {
                     method: 'POST',
                     body: JSON.stringify({
                         query: sqlQuery,
-                        confirm_dangerous: confirmDangerous
+                        confirm_dangerous: confirmDangerous,
+                        page: 1,
+                        page_size: 100
                     })
                 });
                 
@@ -1018,8 +1193,18 @@
                 if (response.ok && result.success) {
                     if (result.data && result.data.length > 0) {
                         resultsContainer.innerHTML = `
-                            <h6>Results (${result.row_count} rows):</h6>
-                            <div class="responsive-table">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Query Results (${result.row_count} rows)
+                            </h6>
+                            ${result.pagination ? `
+                                <div class="pagination-info">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Page ${result.pagination.page} | Execution time: ${result.pagination.execution_time_ms}ms
+                                    ${result.query_analysis ? ` | Type: ${result.query_analysis.type} | Complexity: ${result.query_analysis.estimated_complexity}` : ''}
+                                </div>
+                            ` : ''}
+                            <div class="responsive-table mt-3">
                                 ${createSqlTable(result.data, result.columns)}
                             </div>
                         `;
@@ -1027,7 +1212,8 @@
                         resultsContainer.innerHTML = `
                             <div class="alert alert-success">
                                 <i class="fas fa-check me-2"></i>
-                                ${result.message}
+                                ${result.message || 'Query executed successfully'}
+                                ${result.rows_affected !== undefined ? ` (${result.rows_affected} rows affected)` : ''}
                             </div>
                         `;
                     }
@@ -1035,7 +1221,9 @@
                     resultsContainer.innerHTML = `
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            ${result.error || result.detail}
+                            <strong>Error:</strong> ${result.error || result.detail}
+                            ${result.dangerous_keywords ? `<br><small>Dangerous keywords detected: ${result.dangerous_keywords.join(', ')}</small>` : ''}
+                            ${result.suggestion ? `<br><small class="text-muted">${result.suggestion}</small>` : ''}
                         </div>
                     `;
                 }
@@ -1043,27 +1231,29 @@
                 document.getElementById('sqlResults').innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        Error: ${error.message}
+                        Connection error: ${error.message}
                     </div>
                 `;
             }
         });
 
         function createSqlTable(data, columns) {
-            let html = '<table class="table table-striped table-sm"><thead><tr>';
+            let html = '<table class="table table-striped table-hover table-sm"><thead class="table-dark"><tr>';
             columns.forEach(col => {
                 html += `<th>${col}</th>`;
             });
             html += '</tr></thead><tbody>';
             
-            data.slice(0, 100).forEach(row => { // Limit to 100 rows for performance
+            data.slice(0, 1000).forEach(row => { // Limit to 1000 rows for performance
                 html += '<tr>';
                 columns.forEach(col => {
                     let value = row[col];
                     if (value === null || value === undefined) {
-                        value = '<span class="text-muted">NULL</span>';
+                        value = '<span class="text-muted fst-italic">NULL</span>';
                     } else if (typeof value === 'string' && value.length > 100) {
-                        value = value.substring(0, 100) + '...';
+                        value = `<span title="${value.replace(/"/g, '&quot;')}">${value.substring(0, 100)}...</span>`;
+                    } else if (typeof value === 'number') {
+                        value = `<span class="text-end">${value}</span>`;
                     }
                     html += `<td>${value}</td>`;
                 });
@@ -1072,11 +1262,51 @@
             
             html += '</tbody></table>';
             
-            if (data.length > 100) {
-                html += `<small class="text-muted">Showing first 100 of ${data.length} rows</small>`;
+            if (data.length > 1000) {
+                html += `<div class="text-muted text-center mt-2"><small>Showing first 1000 of ${data.length} rows</small></div>`;
             }
             
             return html;
+        }
+
+        async function showDatabaseTables() {
+            try {
+                const response = await makeRequest(`${API_BASE}/admin/tables`);
+                const result = await response.json();
+                
+                if (result.success && result.tables) {
+                    let tablesHtml = '<h6 class="mb-3">Database Schema:</h6>';
+                    result.tables.forEach(table => {
+                        tablesHtml += `
+                            <div class="border rounded p-2 mb-2">
+                                <strong>${table.name}</strong> 
+                                <span class="badge bg-secondary ms-2">${table.type}</span>
+                                ${table.row_count !== undefined ? `<span class="badge bg-info ms-1">${table.row_count} rows</span>` : ''}
+                                ${table.columns !== undefined ? `<span class="badge bg-success ms-1">${table.columns} columns</span>` : ''}
+                                <button class="btn btn-xs btn-outline-primary ms-2" onclick="setSqlQuery('SELECT * FROM ${table.name} LIMIT 10')">
+                                    <i class="fas fa-eye"></i> Preview
+                                </button>
+                            </div>
+                        `;
+                    });
+                    
+                    document.getElementById('sqlResults').innerHTML = tablesHtml;
+                } else {
+                    document.getElementById('sqlResults').innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Failed to load database tables
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('sqlResults').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading tables: ${error.message}
+                    </div>
+                `;
+            }
         }
 
         async function reloadRegistry() {
@@ -1098,16 +1328,75 @@
             }
         }
 
+        async function checkSystemStatus() {
+            try {
+                const response = await makeRequest(`${API_BASE}/system/status`);
+                const status = await response.json();
+                
+                let statusHtml = `
+                    <h6 class="mb-3"><i class="fas fa-heartbeat me-2"></i>System Status</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>System</h6>
+                            <p><strong>Status:</strong> <span class="badge ${status.system.status === 'operational' ? 'bg-success' : 'bg-warning'}">${status.system.status}</span></p>
+                            <p><strong>Version:</strong> ${status.system.version}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Agents</h6>
+                            <p><strong>Total:</strong> ${status.agents.total}</p>
+                            <p><strong>Healthy:</strong> <span class="text-success">${status.agents.healthy}</span></p>
+                            <p><strong>Unhealthy:</strong> <span class="text-danger">${status.agents.unhealthy}</span></p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Workflows</h6>
+                            <p><strong>Total:</strong> ${status.workflows.total}</p>
+                            <p><strong>Available:</strong> ${status.workflows.available}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Database</h6>
+                            <p><strong>Status:</strong> <span class="badge bg-success">${status.database.status}</span></p>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('systemStatus').innerHTML = statusHtml;
+                
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load system status: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadAgents();
             loadWorkflows();
+            checkSystemStatus();
             document.getElementById('chatInput').focus();
             
             // Add welcome system message
             setTimeout(() => {
                 addMessage('👋 Hello! I\'m your AI workflow assistant. What would you like me to help you with today?', 'system');
             }, 1000);
+        });
+
+        // Tab change handlers
+        document.getElementById('agents-tab').addEventListener('shown.bs.tab', function() {
+            loadAgents();
+        });
+
+        document.getElementById('workflows-tab').addEventListener('shown.bs.tab', function() {
+            loadWorkflows();
+        });
+
+        document.getElementById('admin-tab').addEventListener('shown.bs.tab', function() {
+            checkSystemStatus();
         });
     </script>
 </body>

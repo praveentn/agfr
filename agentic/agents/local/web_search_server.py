@@ -2,7 +2,8 @@
 import time
 import sys
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
+import logging
 
 # Add parent directories to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
@@ -10,16 +11,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 from fastmcp import FastMCP
 from agentic.core.config import settings
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import search engine if available
 try:
-    from modules.search_engine import WebSearchEngine
+    from agentic.modules.search_engine import WebSearchEngine
     search_engine = WebSearchEngine()
     SEARCH_AVAILABLE = True
+    logger.info("Real search engine loaded successfully")
 except ImportError:
-    print("Warning: Search engine module not available, using fallback")
+    logger.warning("Search engine module not available, using fallback")
     search_engine = None
     SEARCH_AVAILABLE = False
 
+# Create MCP server
 mcp = FastMCP("Web Search Server")
 
 @mcp.tool()
@@ -27,8 +34,18 @@ def search(query: str, limit: int = 8, recency_days: int = None) -> Dict[str, An
     """
     Search the web for information using integrated search engine.
     Falls back to mock data if search engine unavailable.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results (1-20)
+        recency_days: Only return results from last N days (optional)
+    
+    Returns:
+        Dictionary with search results including items, metadata
     """
     try:
+        logger.info(f"Processing search request: query='{query}', limit={limit}")
+        
         if SEARCH_AVAILABLE and search_engine:
             # Use real search engine
             search_type = "general"
@@ -39,7 +56,7 @@ def search(query: str, limit: int = 8, recency_days: int = None) -> Dict[str, An
             elif any(keyword in query.lower() for keyword in ["technology", "tech", "innovation"]):
                 search_type = "technology"
             
-            print(f"Performing real search for: {query} (type: {search_type})")
+            logger.info(f"Performing real search for: {query} (type: {search_type})")
             results = search_engine.comprehensive_search(query, search_type, limit)
             
             # Transform results to expected format
@@ -59,14 +76,15 @@ def search(query: str, limit: int = 8, recency_days: int = None) -> Dict[str, An
                 "total_found": len(items),
                 "query": query,
                 "timestamp": time.time(),
-                "source": "real_search"
+                "source": "real_search",
+                "success": True
             }
         else:
             # Fallback to enhanced mock results
             return _get_enhanced_mock_results(query, limit)
 
     except Exception as e:
-        print(f"Search failed: {e}")
+        logger.error(f"Search failed: {e}")
         return _get_enhanced_mock_results(query, limit)
 
 def _get_enhanced_mock_results(query: str, limit: int) -> Dict[str, Any]:
@@ -91,14 +109,6 @@ def _get_enhanced_mock_results(query: str, limit: int) -> Dict[str, Any]:
                 "date_published": "2024-01-12",
                 "domain": "marketresearch.com",
                 "relevance_score": 0.85
-            },
-            {
-                "title": "Consumer Preferences in Footwear: Comfort vs Style Trends",
-                "url": "https://www.retailnews.com/shoe-consumer-trends-2024",
-                "snippet": "68% of consumers now prioritize comfort over style, fueling ergonomic design innovations. Price sensitivity increased 12% post-pandemic.",
-                "date_published": "2024-01-08",
-                "domain": "retailnews.com",
-                "relevance_score": 0.8
             }
         ]
     elif "electric vehicle" in query.lower() or "ev" in query.lower():
@@ -110,67 +120,43 @@ def _get_enhanced_mock_results(query: str, limit: int) -> Dict[str, Any]:
                 "date_published": "2024-01-15",
                 "domain": "evmarket-analysis.com",
                 "relevance_score": 0.95
-            },
-            {
-                "title": "Battery Technology Breakthroughs Driving EV Adoption",
-                "url": "https://www.tech-innovations.com/ev-battery-2024",
-                "snippet": "Solid-state batteries promise 50% more range and 10-minute charging. Major automakers investing $100B in battery tech.",
-                "date_published": "2024-01-12",
-                "domain": "tech-innovations.com",
-                "relevance_score": 0.9
-            },
-            {
-                "title": "Government EV Incentives and Infrastructure Investment",
-                "url": "https://www.policy-tracker.com/ev-incentives-2024",
-                "snippet": "Global governments allocate $500B for EV infrastructure. Federal tax credits extended through 2025 in major markets.",
-                "date_published": "2024-01-10",
-                "domain": "policy-tracker.com",
-                "relevance_score": 0.85
             }
         ]
-    elif "market research" in query.lower() or "industry analysis" in query.lower():
-        topic = query.replace("market research", "").replace("industry analysis", "").strip()
+    elif "france" in query.lower() and "capital" in query.lower():
         mock_results = [
             {
-                "title": f"{topic.title()} Market Analysis & Industry Report 2024",
-                "url": f"https://www.industry-reports.com/{topic.lower().replace(' ', '-')}-market-2024",
-                "snippet": f"Comprehensive analysis of the {topic} market including size, growth projections, competitive landscape, and emerging trends shaping the industry.",
-                "date_published": "2024-01-15",
-                "domain": "industry-reports.com",
-                "relevance_score": 0.9
+                "title": "Paris - Capital and Largest City of France",
+                "url": "https://en.wikipedia.org/wiki/Paris",
+                "snippet": "Paris is the capital and most populous city of France. With an official estimated population of 2,102,650 residents as of 1 January 2023 in an area of more than 105 km².",
+                "date_published": "2024-01-01",
+                "domain": "wikipedia.org",
+                "relevance_score": 0.98
             },
             {
-                "title": f"Top Companies in {topic.title()} Industry - 2024 Rankings",
-                "url": f"https://www.business-insights.com/{topic.lower().replace(' ', '-')}-companies-2024",
-                "snippet": f"Leading players in the {topic} space, market share analysis, recent developments, and strategic initiatives driving growth.",
-                "date_published": "2024-01-12",
-                "domain": "business-insights.com",
-                "relevance_score": 0.85
-            },
-            {
-                "title": f"{topic.title()} Industry Trends and Future Outlook",
-                "url": f"https://www.trend-analysis.com/{topic.lower().replace(' ', '-')}-trends-2024",
-                "snippet": f"Key trends shaping the {topic} industry including technological innovations, regulatory changes, and consumer behavior shifts.",
-                "date_published": "2024-01-10",
-                "domain": "trend-analysis.com",
-                "relevance_score": 0.8
+                "title": "France - Country Profile and Facts",
+                "url": "https://www.britannica.com/place/France",
+                "snippet": "France, officially French Republic, country of northwestern Europe. Its capital is Paris, one of the most important commercial and cultural centres of the world.",
+                "date_published": "2024-01-05",
+                "domain": "britannica.com",
+                "relevance_score": 0.95
             }
         ]
     else:
-        # Generic results
+        # Generic results based on query
+        topic = query.replace("market research", "").replace("search for", "").strip()
         mock_results = [
             {
-                "title": f"Comprehensive Guide to {query.title()}",
-                "url": f"https://www.comprehensive-guides.com/{query.lower().replace(' ', '-')}",
-                "snippet": f"Complete overview and analysis of {query}, including latest developments, key insights, and expert perspectives.",
+                "title": f"Comprehensive Guide to {topic.title()}",
+                "url": f"https://www.comprehensive-guides.com/{topic.lower().replace(' ', '-')}",
+                "snippet": f"Complete overview and analysis of {topic}, including latest developments, key insights, and expert perspectives on current trends.",
                 "date_published": "2024-01-15",
                 "domain": "comprehensive-guides.com",
                 "relevance_score": 0.7
             },
             {
-                "title": f"{query.title()} - Latest News and Updates",
-                "url": f"https://www.news-source.com/{query.lower().replace(' ', '-')}-news",
-                "snippet": f"Stay updated with the latest news, trends, and developments related to {query}.",
+                "title": f"{topic.title()} - Latest News and Updates",
+                "url": f"https://www.news-source.com/{topic.lower().replace(' ', '-')}-news",
+                "snippet": f"Stay updated with the latest news, trends, and developments related to {topic}. Expert analysis and market insights.",
                 "date_published": "2024-01-12",
                 "domain": "news-source.com",
                 "relevance_score": 0.6
@@ -182,12 +168,48 @@ def _get_enhanced_mock_results(query: str, limit: int) -> Dict[str, Any]:
         "total_found": len(mock_results),
         "query": query,
         "timestamp": time.time(),
-        "source": "mock_search"
+        "source": "mock_search",
+        "success": True
     }
 
+@mcp.tool()
+def health() -> Dict[str, Any]:
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "server": "Web Search Server",
+        "timestamp": time.time(),
+        "search_engine_available": SEARCH_AVAILABLE
+    }
+
+@mcp.tool()
+def get_tools() -> List[Dict[str, Any]]:
+    """Get list of available tools"""
+    return [
+        {
+            "name": "search",
+            "description": "Search the web for information",
+            "parameters": {
+                "query": "string (required) - Search query",
+                "limit": "integer (optional) - Max results (1-20, default: 8)",
+                "recency_days": "integer (optional) - Only recent results"
+            }
+        },
+        {
+            "name": "health",
+            "description": "Health check for the server",
+            "parameters": {}
+        }
+    ]
+
 if __name__ == "__main__":
-    print("Starting Web Search Server on port 9101...")
-    print(f"Search engine available: {SEARCH_AVAILABLE}")
+    print("=" * 60)
+    print("🔍 Starting Web Search MCP Server")
+    print("=" * 60)
+    print(f"🌐 Port: 9101")
+    print(f"🔧 Search Engine Available: {SEARCH_AVAILABLE}")
+    print(f"⚡ Server Name: Web Search Server")
+    print("=" * 60)
     
-    # Use sync run to avoid asyncio conflicts
+    # Run the server
     mcp.run(transport="http", host="0.0.0.0", port=9101)
