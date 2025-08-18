@@ -2,7 +2,7 @@
 name: tabulator
 endpoint: http://localhost:9102
 transport: http
-description: Data tabulation and formatting agent
+description: Data tabulation, formatting, filtering, and analysis agent
 enabled: true
 tools:
   - name: tabulate
@@ -11,23 +11,104 @@ tools:
       type: object
       properties:
         data:
-          description: Data to tabulate (JSON array or text)
+          description: Data to tabulate (JSON array, text, or search results)
         fields:
           type: array
           items: {type: string}
-          description: Fields to extract/display
+          description: Specific fields to extract/display (optional)
         format:
           type: string
           enum: [json, csv, html]
           default: json
+          description: Output format
       required: [data]
     returns_schema:
       type: object
       properties:
         table:
-          type: array
-          description: Tabulated data
+          description: Tabulated data in requested format
         format: {type: string}
         row_count: {type: integer}
+        columns: {type: array, items: {type: string}}
 
+  - name: pivot_table
+    description: Create a pivot table from data
+    params_schema:
+      type: object
+      properties:
+        data:
+          description: Input data (JSON string or list of dicts)
+        index_field:
+          type: string
+          description: Field to use as row index
+        value_field:
+          type: string
+          description: Field to aggregate
+        aggfunc:
+          type: string
+          enum: [sum, count, mean, max, min]
+          default: sum
+          description: Aggregation function
+      required: [data, index_field, value_field]
+    returns_schema:
+      type: object
+      properties:
+        pivot_table: {type: array}
+        format: {type: string}
+        row_count: {type: integer}
+        columns: {type: array, items: {type: string}}
+        aggregation: {type: string}
 
+  - name: sort_data
+    description: Sort tabular data by specified field
+    params_schema:
+      type: object
+      properties:
+        data:
+          description: Input data to sort
+        sort_field:
+          type: string
+          description: Field name to sort by
+        ascending:
+          type: boolean
+          default: true
+          description: Sort in ascending order
+      required: [data, sort_field]
+    returns_schema:
+      type: object
+      properties:
+        table: {type: array}
+        format: {type: string}
+        row_count: {type: integer}
+        columns: {type: array, items: {type: string}}
+        sorted_by: {type: string}
+        ascending: {type: boolean}
+
+  - name: filter_data
+    description: Filter tabular data based on field value
+    params_schema:
+      type: object
+      properties:
+        data:
+          description: Input data to filter
+        filter_field:
+          type: string
+          description: Field to filter on
+        filter_value:
+          type: string
+          description: Value to filter for
+        operator:
+          type: string
+          enum: [contains, equals, starts_with, greater_than, less_than]
+          default: contains
+          description: Filter operator
+      required: [data, filter_field, filter_value]
+    returns_schema:
+      type: object
+      properties:
+        table: {type: array}
+        format: {type: string}
+        row_count: {type: integer}
+        columns: {type: array, items: {type: string}}
+        filter_applied: {type: string}
+        original_count: {type: integer}

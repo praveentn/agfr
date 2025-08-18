@@ -2,38 +2,155 @@
 name: calculator
 endpoint: http://localhost:9104
 transport: http
-description: Mathematical calculations and data processing
+description: Mathematical calculations, statistics, and financial computations
 enabled: true
 tools:
   - name: add
-    description: Add two numbers
+    description: Add two numbers together
     params_schema:
       type: object
       properties:
-        a: {type: number}
-        b: {type: number}
+        a: {type: number, description: "First number"}
+        b: {type: number, description: "Second number"}
       required: [a, b]
     returns_schema:
       type: number
+
+  - name: subtract
+    description: Subtract second number from first number
+    params_schema:
+      type: object
+      properties:
+        a: {type: number, description: "First number"}
+        b: {type: number, description: "Second number"}
+      required: [a, b]
+    returns_schema:
+      type: number
+
   - name: multiply
     description: Multiply two numbers
     params_schema:
       type: object
       properties:
-        a: {type: number}
-        b: {type: number}
+        a: {type: number, description: "First number"}
+        b: {type: number, description: "Second number"}
       required: [a, b]
     returns_schema:
       type: number
+
   - name: divide
-    description: Divide two numbers
+    description: Divide first number by second number
     params_schema:
       type: object
       properties:
-        a: {type: number}
-        b: {type: number}
+        a: {type: number, description: "Dividend"}
+        b: {type: number, description: "Divisor"}
       required: [a, b]
     returns_schema:
       type: number
 
+  - name: power
+    description: Raise first number to the power of second number
+    params_schema:
+      type: object
+      properties:
+        a: {type: number, description: "Base number"}
+        b: {type: number, description: "Exponent"}
+      required: [a, b]
+    returns_schema:
+      type: number
 
+  - name: sqrt
+    description: Calculate square root of a number
+    params_schema:
+      type: object
+      properties:
+        a: {type: number, description: "Number to find square root of", minimum: 0}
+      required: [a]
+    returns_schema:
+      type: number
+
+  - name: percentage
+    description: Calculate percentage of a value
+    params_schema:
+      type: object
+      properties:
+        value: {type: number, description: "Base value"}
+        percent: {type: number, description: "Percentage to calculate"}
+      required: [value, percent]
+    returns_schema:
+      type: number
+
+  - name: compound_interest
+    description: Calculate compound interest for investments
+    params_schema:
+      type: object
+      properties:
+        principal: {type: number, description: "Initial investment amount", minimum: 0}
+        rate: {type: number, description: "Annual interest rate (as percentage)", minimum: 0}
+        time: {type: number, description: "Time period in years", minimum: 0}
+        frequency: {type: integer, description: "Compounding frequency per year", default: 1, minimum: 1}
+      required: [principal, rate, time]
+    returns_schema:
+      type: object
+      properties:
+        principal: {type: number}
+        rate_percent: {type: number}
+        time_years: {type: number}
+        compound_frequency: {type: integer}
+        final_amount: {type: number}
+        interest_earned: {type: number}
+        total_return_percent: {type: number}
+
+  - name: factorial
+    description: Calculate factorial of a number
+    params_schema:
+      type: object
+      properties:
+        n: {type: integer, description: "Non-negative integer", minimum: 0, maximum: 170}
+      required: [n]
+    returns_schema:
+      type: integer
+
+  - name: logarithm
+    description: Calculate logarithm of a number with given base
+    params_schema:
+      type: object
+      properties:
+        a: {type: number, description: "Number to find logarithm of", minimum: 0, exclusiveMinimum: true}
+        base: {type: number, description: "Base (default: e for natural log)", default: 2.718281828459045}
+      required: [a]
+    returns_schema:
+      type: number
+
+  - name: trigonometry
+    description: Calculate trigonometric functions
+    params_schema:
+      type: object
+      properties:
+        value: {type: number, description: "Input value"}
+        function: {type: string, enum: [sin, cos, tan, asin, acos, atan], description: "Trigonometric function"}
+        unit: {type: string, enum: [radians, degrees], default: radians, description: "Unit for angle measurement"}
+      required: [value, function]
+    returns_schema:
+      type: number
+
+  - name: statistics
+    description: Calculate basic statistics for a list of numbers
+    params_schema:
+      type: object
+      properties:
+        numbers: {type: array, items: {type: number}, description: "List of numbers to analyze", minItems: 1}
+      required: [numbers]
+    returns_schema:
+      type: object
+      properties:
+        count: {type: integer}
+        sum: {type: number}
+        mean: {type: number}
+        median: {type: number}
+        min: {type: number}
+        max: {type: number}
+        range: {type: number}
+        variance: {type: number}
+        standard_deviation: {type: number}
