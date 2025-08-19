@@ -1,65 +1,108 @@
 # agentic/workflows/market_research_shoes.yaml
 id: market_research_shoes
-name: Shoe Market Research
-description: Comprehensive market research analysis for footwear industry
+name: Market Research - Shoes
+description: Comprehensive market research for shoe industry with competitor analysis and trend identification
 intent: market_research
+tags: ["market_research", "shoes", "competitive_analysis", "trends"]
+metadata:
+  author: system
+  version: "1.2"
+  created_at: "2025-01-01"
+  updated_at: "2025-01-15"
+  category: research
+  estimated_duration: "2-3 minutes"
+
 inputs:
-  topic: "shoes"
-  decision_criteria: ["price", "comfort", "durability", "brand"]
+  topic: 
+    type: string
+    default: "shoes"
+    description: "Market research topic"
+  decision_criteria: 
+    type: array
+    default: ["price", "comfort", "durability", "brand", "style"]
+    description: "Criteria for analysis"
+  max_results:
+    type: integer
+    default: 15
+    description: "Maximum search results per query"
+
 plan:
+  id: market_research_shoes_plan
+  description: "Multi-stage market research workflow for shoe industry analysis"
   nodes:
     - id: search_trends
       agent: web_search
       tool: search
       params: 
-        query: "2025 shoe market trends analysis"
-        limit: 10
-      parallel_group: "market_data"
-      description: "Search for current shoe market trends"
-    
-    - id: search_brands
+        query: "{{inputs.topic}} market trends 2025 analysis"
+        limit: "{{inputs.max_results}}"
+        include_snippets: true
+      parallel_group: research_phase
+      timeout_sec: 45
+      retries: 2
+      
+    - id: search_competitors
       agent: web_search
       tool: search
-      params:
-        query: "top shoe brands 2025 consumer reviews"
-        limit: 10
-      parallel_group: "market_data"
-      description: "Search for top shoe brands and reviews"
-    
+      params: 
+        query: "top {{inputs.topic}} brands 2025 competitive analysis"
+        limit: "{{inputs.max_results}}"
+        include_snippets: true
+      parallel_group: research_phase
+      timeout_sec: 45
+      retries: 2
+      
     - id: search_pricing
       agent: web_search
       tool: search
-      params:
-        query: "shoe pricing trends retail market 2025"
-        limit: 8
-      parallel_group: "market_data"
-      description: "Search for pricing information"
-    
-    - id: summarize_findings
+      params: 
+        query: "{{inputs.topic}} pricing market analysis consumer reports"
+        limit: "{{inputs.max_results}}"
+        include_snippets: true
+      parallel_group: research_phase
+      timeout_sec: 45
+      retries: 2
+      
+    - id: summarize_research
       agent: nlp_summarizer
-      tool: summarize
+      tool: extract_insights
       params:
-        text: "{{results.market_data.combined}}"
-        style: "detailed"
-        max_length: 500
-      depends_on: ["market_data"]
-      description: "Summarize all market research findings"
-    
-    - id: create_report
+        text: "{{results.search_trends.data}} {{results.search_competitors.data}} {{results.search_pricing.data}}"
+        insight_types: ["trends", "opportunities", "competitive_landscape", "pricing_analysis"]
+        business_context: "market_research"
+        priority: "comprehensive"
+      depends_on: [research_phase]
+      timeout_sec: 60
+      retries: 1
+      
+    - id: create_analysis_table
       agent: tabulator
-      tool: tabulate
+      tool: ai_tabulate
       params:
-        data: "{{results.summarize_findings.data}}"
-        fields: ["brand", "price_range", "key_features", "market_position", "consumer_sentiment"]
-        format: "json"
-      depends_on: ["summarize_findings"]
-      description: "Create structured market research report"
+        data: "{{results.summarize_research.data}}"
+        format: "market_research"
+        columns: ["Brand/Topic", "Market Position", "Key Strengths", "Price Range", "Target Segment", "Trends", "Sources"]
+        ai_enhancement: true
+        max_rows: 25
+      depends_on: [summarize_research]
+      timeout_sec: 45
+      retries: 1
+
+  edges:
+    - from: search_trends
+      to: summarize_research
+      condition: "success"
+    - from: search_competitors  
+      to: summarize_research
+      condition: "success"
+    - from: search_pricing
+      to: summarize_research
+      condition: "success"
+    - from: summarize_research
+      to: create_analysis_table
+      condition: "success"
 
 outputs:
-  format: table
-  fields: ["brand", "price_range", "key_features", "market_position", "consumer_sentiment"]
-  
-metadata:
-  created_by: "system"
-  version: "1.0"
-  tags: ["market_research", "footwear", "consumer_analysis"]
+  format: "comprehensive_report"
+  fields: ["executive_summary", "market_trends", "competitive_analysis", "pricing_insights", "recommendations", "data_table", "sources"]
+  style: "detailed"

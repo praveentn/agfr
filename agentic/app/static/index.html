@@ -1,1403 +1,1947 @@
-<!-- agentic/app/static/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic Framework - Enterprise AI Workflow Assistant</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <title>Agentic Framework - Enterprise AI Workflow Platform</title>
+    
+    <!-- Enhanced Styling -->
     <style>
         :root {
-            --primary-color: #1e3a8a;
-            --secondary-color: #3b82f6;
-            --accent-color: #ef4444;
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
             --success-color: #10b981;
             --warning-color: #f59e0b;
-            --light-bg: #f8fafc;
-            --dark-bg: #1e293b;
-            --chat-user: #dbeafe;
-            --chat-assistant: #f1f5f9;
-            --border-color: #e2e8f0;
+            --error-color: #ef4444;
+            --info-color: #06b6d4;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            --bg-card: #ffffff;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
             --text-muted: #64748b;
+            --text-white: #ffffff;
+            
+            --border-color: #e2e8f0;
+            --border-dark: #cbd5e1;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
         }
-
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            overflow-x: hidden;
+        }
+        
+        .app-container {
             min-height: 100vh;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: #1e293b;
-        }
-
-        .main-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(15px);
-            border-radius: 24px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
-            margin: 20px auto;
-            max-width: 1600px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .navbar {
-            background: linear-gradient(135deg, var(--primary-color), var(--dark-bg));
-            padding: 24px 32px;
-            border-radius: 24px 24px 0 0;
-        }
-
-        .navbar-brand {
-            font-weight: 700;
-            font-size: 1.8rem;
-            color: white !important;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .nav-tabs {
-            border-bottom: 2px solid var(--border-color);
-            margin: 20px 20px 0 20px;
-        }
-
-        .nav-tabs .nav-link {
-            border: none;
-            color: var(--text-muted);
-            font-weight: 500;
-            padding: 12px 24px;
-            margin-right: 8px;
-            border-radius: 12px 12px 0 0;
-            transition: all 0.3s ease;
-        }
-
-        .nav-tabs .nav-link:hover {
-            background: var(--light-bg);
-            color: var(--primary-color);
-        }
-
-        .nav-tabs .nav-link.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .tab-content {
-            padding: 20px;
-            min-height: 70vh;
-        }
-
-        .chat-container {
-            height: 65vh;
             display: flex;
             flex-direction: column;
-            background: white;
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
         }
-
+        
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 4rem;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 2rem;
+            height: 2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+        }
+        
+        .status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            flex: 1;
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            height: calc(100vh - 4rem);
+            overflow-y: auto;
+            position: sticky;
+            top: 4rem;
+        }
+        
+        .nav-menu {
+            list-style: none;
+        }
+        
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .nav-link:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .nav-link.active {
+            background: var(--primary-color);
+            color: var(--text-white);
+        }
+        
+        .nav-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            opacity: 0.7;
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 2rem;
+            background: var(--bg-secondary);
+            min-height: calc(100vh - 4rem);
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+        
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-description {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        /* Chat Interface */
+        .chat-container {
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
-            background: linear-gradient(to bottom, #fafafa, #ffffff);
+            padding: 1rem;
+            scroll-behavior: smooth;
         }
-
+        
         .message {
-            margin-bottom: 24px;
-            animation: fadeInUp 0.4s ease;
+            margin-bottom: 1.5rem;
+            animation: slideInUp 0.3s ease;
         }
-
-        .message-user .message-content {
-            background: var(--chat-user);
-            color: var(--primary-color);
-            border-radius: 20px 20px 5px 20px;
-            padding: 16px 20px;
-            display: inline-block;
-            max-width: 80%;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-            font-weight: 500;
+        
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        .message-assistant .message-content {
-            background: var(--chat-assistant);
-            color: var(--dark-bg);
-            border-radius: 20px 20px 20px 5px;
-            padding: 16px 20px;
-            display: inline-block;
-            max-width: 85%;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .message-system .message-content {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success-color);
-            border-radius: 16px;
-            padding: 12px 16px;
-            display: inline-block;
-            font-size: 0.9rem;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            font-weight: 500;
-        }
-
-        .typing-indicator {
-            display: none;
-        }
-
-        .typing-dots {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .typing-dots span {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--secondary-color);
-            animation: typing 1.5s infinite;
-        }
-
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-            30% { transform: translateY(-8px); opacity: 1; }
-        }
-
-        .chat-input-container {
-            padding: 24px;
-            background: white;
-            border-top: 1px solid var(--border-color);
-            border-radius: 0 0 16px 16px;
-        }
-
-        .chat-input textarea {
-            border-radius: 20px;
-            border: 2px solid var(--border-color);
-            padding: 16px 60px 16px 20px;
-            resize: none;
-            transition: all 0.3s ease;
-            background: var(--light-bg);
-            font-weight: 500;
-        }
-
-        .chat-input textarea:focus {
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            background: white;
-        }
-
-        .send-button {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--secondary-color);
-            border: none;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            color: white;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .send-button:hover:not(:disabled) {
-            background: var(--primary-color);
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .quick-actions {
-            margin-top: 16px;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .quick-action {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .quick-action:hover {
-            background: var(--secondary-color);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .agent-card, .workflow-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .agent-card:hover, .workflow-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            border-color: var(--secondary-color);
-        }
-
-        .agent-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .status-healthy {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success-color);
-        }
-
-        .status-unhealthy {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--accent-color);
-        }
-
-        .status-loading {
-            background: rgba(245, 158, 11, 0.1);
-            color: var(--warning-color);
-        }
-
-        .result-content {
-            background: var(--light-bg);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 16px;
-            border: 1px solid var(--border-color);
-        }
-
-        .result-table {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-top: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-
-        .result-table table {
-            margin: 0;
-        }
-
-        .result-table th {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 16px;
-            font-weight: 600;
-        }
-
-        .result-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .sql-container {
-            background: white;
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
-            overflow: hidden;
-        }
-
-        .sql-header {
-            background: linear-gradient(135deg, var(--warning-color), #fbbf24);
-            color: white;
-            padding: 20px 24px;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .sql-content {
-            padding: 24px;
-        }
-
-        .sql-textarea {
-            background: #1e293b;
-            color: #e2e8f0;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .sql-textarea:focus {
-            background: #1e293b;
-            color: #e2e8f0;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .sql-results {
-            max-height: 500px;
-            overflow: auto;
-            margin-top: 20px;
-        }
-
-        .execution-status {
+        
+        .message-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-top: 16px;
-            padding: 12px 16px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 12px;
-            border-left: 4px solid var(--secondary-color);
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
         }
-
-        .status-icon {
-            width: 24px;
-            height: 24px;
+        
+        .message-avatar {
+            width: 2rem;
+            height: 2rem;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .message.user .message-avatar {
+            background: var(--primary-color);
             color: white;
-            font-weight: bold;
         }
-
-        .status-running .status-icon {
-            background: var(--secondary-color);
-            animation: pulse 2s infinite;
-        }
-
-        .status-success .status-icon {
+        
+        .message.assistant .message-avatar {
             background: var(--success-color);
+            color: white;
         }
-
-        .status-error .status-icon {
-            background: var(--accent-color);
+        
+        .message-role {
+            font-weight: 600;
+            font-size: 0.875rem;
         }
-
-        .welcome-message {
-            text-align: center;
-            padding: 60px 40px;
-            color: var(--text-muted);
-        }
-
-        .welcome-message h3 {
+        
+        .message.user .message-role {
             color: var(--primary-color);
-            margin-bottom: 20px;
-            font-weight: 700;
         }
-
-        .responsive-table {
-            overflow-x: auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        
+        .message.assistant .message-role {
+            color: var(--success-color);
         }
-
-        .pagination-info {
-            background: var(--light-bg);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-top: 12px;
-            font-size: 0.9rem;
+        
+        .message-time {
+            font-size: 0.75rem;
             color: var(--text-muted);
+            margin-left: auto;
         }
-
-        .query-history {
-            max-height: 300px;
-            overflow-y: auto;
+        
+        .message-content {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-left: 2.75rem;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
-
-        .history-item {
-            padding: 12px;
-            border-bottom: 1px solid var(--border-color);
+        
+        .message.user .message-content {
+            background: var(--primary-color);
+            color: white;
+            margin-left: 0;
+            margin-right: 2.75rem;
+        }
+        
+        .chat-input-area {
+            border-top: 1px solid var(--border-color);
+            padding: 1rem;
+            background: var(--bg-secondary);
+        }
+        
+        .chat-form {
+            display: flex;
+            gap: 0.75rem;
+            align-items: end;
+        }
+        
+        .chat-input {
+            flex: 1;
+            min-height: 2.5rem;
+            max-height: 8rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.875rem;
+            resize: none;
+            transition: border-color 0.2s ease;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            border-radius: var(--radius-md);
             cursor: pointer;
             transition: all 0.2s ease;
+            text-decoration: none;
+            white-space: nowrap;
         }
-
-        .history-item:hover {
-            background: var(--light-bg);
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-
-        .badge-custom {
-            padding: 4px 8px;
-            border-radius: 12px;
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-error {
+            background: var(--error-color);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
             font-size: 0.75rem;
+        }
+        
+        .btn-lg {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 6rem;
+        }
+        
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .form-checkbox input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            accent-color: var(--primary-color);
+        }
+        
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            margin-left: 2.75rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            font-style: italic;
+            color: var(--text-muted);
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+        
+        .typing-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: typingPulse 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        .typing-dot:nth-child(3) { animation-delay: 0s; }
+        
+        @keyframes typingPulse {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+        
+        /* Tables */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table th {
+            background: var(--bg-secondary);
             font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.875rem;
         }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
+        
+        .table td {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: var(--radius-lg);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+        
+        .badge-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+        }
+        
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .badge-info {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--info-color);
+        }
+        
+        .badge-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+        
+        /* Grid Layouts */
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+        
+        .grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .stat-card-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+        
+        .stat-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .stat-card-change.positive {
+            color: var(--success-color);
+        }
+        
+        .stat-card-change.negative {
+            color: var(--error-color);
+        }
+        
+        /* SQL Editor */
+        .sql-editor {
+            position: relative;
+        }
+        
+        .sql-textarea {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: var(--bg-dark);
+            color: #e2e8f0;
+            border: 1px solid var(--border-dark);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            min-height: 200px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+        
+        .sql-results {
+            margin-top: 1.5rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .nav-menu {
+                display: flex;
+                overflow-x: auto;
+                gap: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+            
+            .nav-item {
+                margin-bottom: 0;
+                flex-shrink: 0;
             }
         }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-            .main-container {
-                margin: 10px;
-                border-radius: 16px;
+        
+        @media (max-width: 640px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+            
+            .content-area {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
             
             .chat-container {
                 height: 60vh;
             }
             
-            .navbar {
-                padding: 16px 20px;
+            .card-header,
+            .card-body {
+                padding: 1rem;
+            }
+        }
+        
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .text-center { text-align: center; }
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        
+        /* Dark mode support (future enhancement) */
+        @media (prefers-color-scheme: dark) {
+            /* Dark mode styles can be added here */
+        }
+        
+        /* Animation enhancements */
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-dark);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+        
+        /* Enhanced focus styles for accessibility */
+        .btn:focus-visible,
+        .nav-link:focus-visible,
+        .form-input:focus-visible,
+        .form-select:focus-visible,
+        .form-textarea:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+        
+        /* Print styles */
+        @media print {
+            .sidebar,
+            .header-actions,
+            .chat-input-area {
+                display: none;
             }
             
-            .tab-content {
-                padding: 16px;
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .content-area {
+                padding: 1rem;
             }
         }
     </style>
 </head>
+
 <body>
-    <!-- Main Container -->
-    <div class="container-fluid main-container">
-        <!-- Navigation -->
-        <nav class="navbar">
-            <div class="container-fluid d-flex justify-content-between align-items-center">
-                <a class="navbar-brand" href="#">
-                    <i class="fas fa-robot me-2"></i>
-                    Agentic Framework
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="#" class="logo">
+                    <div class="logo-icon">A</div>
+                    <span>Agentic Framework</span>
                 </a>
-                <div class="d-flex align-items-center gap-3">
-                    <span class="text-light">
-                        <i class="fas fa-circle text-success me-1" id="connectionStatus"></i>
-                        <span id="connectionText">Connected</span>
-                    </span>
-                    <button class="btn btn-outline-light btn-sm" onclick="checkSystemStatus()">
-                        <i class="fas fa-heartbeat me-1"></i> Status
-                    </button>
+                
+                <div class="header-actions">
+                    <div id="connectionStatus" class="connection-status disconnected">
+                        <div class="status-dot"></div>
+                        <span>Connecting...</span>
+                    </div>
                 </div>
             </div>
-        </nav>
+        </header>
 
-        <!-- Tab Navigation -->
-        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button" role="tab">
-                    <i class="fas fa-comments me-2"></i>Workflow Assistant
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents-panel" type="button" role="tab">
-                    <i class="fas fa-robot me-2"></i>Agents & Tools
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="workflows-tab" data-bs-toggle="tab" data-bs-target="#workflows-panel" type="button" role="tab">
-                    <i class="fas fa-sitemap me-2"></i>Workflows
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-panel" type="button" role="tab">
-                    <i class="fas fa-cog me-2"></i>Admin
-                </button>
-            </li>
-        </ul>
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active" data-tab="chat">
+                            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                            Workflow Chat
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-tab="agents">
+                            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            Agents & Tools
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-tab="workflows">
+                            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                            </svg>
+                            Workflows
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-tab="admin">
+                            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                            </svg>
+                            Admin Panel
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-tab="analytics">
+                            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            Analytics
+                        </a>
+                    </li>
+                </ul>
+            </nav>
 
-        <!-- Tab Content -->
-        <div class="tab-content" id="mainTabContent">
-            <!-- Chat Panel -->
-            <div class="tab-pane fade show active" id="chat-panel" role="tabpanel">
-                <div class="chat-container">
-                    <!-- Messages -->
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="welcome-message" id="welcomeMessage">
-                            <h3><i class="fas fa-magic me-2"></i>Welcome to your Enterprise AI Assistant</h3>
-                            <p>I can help you with market research, data analysis, web searches, calculations, and more!</p>
-                            <p>Try asking me something like:</p>
-                            <div class="d-flex justify-content-center gap-2 flex-wrap mt-4">
-                                <span class="quick-action" onclick="setQuickQuery('Do market research on electric vehicles')">
-                                    "Do market research on electric vehicles"
-                                </span>
-                                <span class="quick-action" onclick="setQuickQuery('Search for Python best practices')">
-                                    "Search for Python best practices"
-                                </span>
-                                <span class="quick-action" onclick="setQuickQuery('Calculate compound interest for $10000 at 7% for 5 years')">
-                                    "Calculate compound interest"
-                                </span>
+            <!-- Content Area -->
+            <main class="content-area">
+                <!-- Chat Tab -->
+                <div id="chatTab" class="tab-content active">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">AI Workflow Assistant</div>
+                            <div class="card-description">
+                                Describe your task and let our AI agents handle the workflow execution
                             </div>
                         </div>
-
-                        <!-- Typing Indicator -->
-                        <div class="message typing-indicator" id="typingIndicator">
-                            <div class="message-content">
-                                <div class="typing-dots">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
+                        <div class="card-body">
+                            <div class="chat-container">
+                                <div id="chatMessages" class="chat-messages">
+                                    <div class="message assistant">
+                                        <div class="message-header">
+                                            <div class="message-avatar">AI</div>
+                                            <span class="message-role">Assistant</span>
+                                            <span class="message-time">Just now</span>
+                                        </div>
+                                        <div class="message-content">
+                                            Welcome to the Agentic Framework! I can help you with:
+                                            
+                                            • 🔍 Web research and market analysis
+                                            • 📊 Data analysis and visualization
+                                            • 📝 Text summarization and insights
+                                            • 🧮 Calculations and computations
+                                            • 💾 Database queries and analysis
+                                            
+                                            What would you like me to help you with today?
+                                        </div>
+                                    </div>
                                 </div>
-                                <span class="ms-2 text-muted">AI is processing...</span>
+                                
+                                <div class="chat-input-area">
+                                    <form id="chatForm" class="chat-form">
+                                        <textarea 
+                                            id="chatInput" 
+                                            class="chat-input" 
+                                            placeholder="Describe what you'd like me to do..."
+                                            rows="1"
+                                        ></textarea>
+                                        <button type="submit" class="btn btn-primary" id="sendButton">
+                                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                            </svg>
+                                            Send
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Input Area -->
-                    <div class="chat-input-container">
-                        <form id="chatForm">
-                            <div class="chat-input position-relative">
-                                <textarea 
-                                    id="chatInput" 
-                                    class="form-control" 
-                                    rows="2" 
-                                    placeholder="Ask me anything... (e.g., 'Do market research on smartphones')"
-                                    maxlength="2000"></textarea>
-                                <button type="submit" class="send-button" id="sendButton">
-                                    <i class="fas fa-paper-plane"></i>
+                <!-- Agents Tab -->
+                <div id="agentsTab" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Available Agents & Tools</div>
+                            <div class="card-description">
+                                Manage and monitor the available AI agents and their capabilities
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="agentsContent">
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-card-header">
+                                            <div class="stat-card-title">Total Agents</div>
+                                            <div class="stat-card-icon">🤖</div>
+                                        </div>
+                                        <div class="stat-card-value" id="totalAgents">0</div>
+                                        <div class="stat-card-change positive">
+                                            <span>All systems operational</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stat-card">
+                                        <div class="stat-card-header">
+                                            <div class="stat-card-title">Available Tools</div>
+                                            <div class="stat-card-icon">🛠️</div>
+                                        </div>
+                                        <div class="stat-card-value" id="totalTools">0</div>
+                                        <div class="stat-card-change">
+                                            <span>Ready for execution</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="agentsList" class="grid grid-cols-1 gap-4">
+                                    <!-- Agents will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflows Tab -->
+                <div id="workflowsTab" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="card-title">Workflow Library</div>
+                                    <div class="card-description">
+                                        Pre-built workflows for common tasks and custom workflow management
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="showCreateWorkflowModal()">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Create Workflow
                                 </button>
                             </div>
-                            <div class="quick-actions">
-                                <span class="quick-action" onclick="setQuickQuery('Analyze the renewable energy market trends')">Market Analysis</span>
-                                <span class="quick-action" onclick="setQuickQuery('Find information about latest AI developments')">Web Search</span>
-                                <span class="quick-action" onclick="setQuickQuery('Create a summary and table from this data')">Data Analysis</span>
-                                <span class="quick-action" onclick="setQuickQuery('Calculate the ROI for this investment')">Mathematics</span>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Agents Panel -->
-            <div class="tab-pane fade" id="agents-panel" role="tabpanel">
-                <div class="row">
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h4><i class="fas fa-robot me-2"></i>Available Agents</h4>
-                            <button class="btn btn-outline-primary" onclick="refreshAgents()">
-                                <i class="fas fa-sync-alt me-1"></i> Refresh
-                            </button>
                         </div>
-                        <div id="agentsList">
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-primary" role="status"></div>
-                                <div class="mt-3">Loading agents...</div>
+                        <div class="card-body">
+                            <div id="workflowsContent">
+                                <!-- Workflows will be populated here -->
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Workflows Panel -->
-            <div class="tab-pane fade" id="workflows-panel" role="tabpanel">
-                <div class="row">
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h4><i class="fas fa-sitemap me-2"></i>Available Workflows</h4>
-                            <button class="btn btn-outline-primary" onclick="refreshWorkflows()">
-                                <i class="fas fa-sync-alt me-1"></i> Refresh
-                            </button>
-                        </div>
-                        <div id="workflowsList">
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-success" role="status"></div>
-                                <div class="mt-3">Loading workflows...</div>
+                <!-- Admin Tab -->
+                <div id="adminTab" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="card-title">Admin Panel</div>
+                                    <div class="card-description">
+                                        System administration and SQL database management
+                                    </div>
+                                </div>
+                                <button class="btn btn-warning" onclick="showSystemStats()">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    System Stats
+                                </button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Admin Panel -->
-            <div class="tab-pane fade" id="admin-panel" role="tabpanel">
-                <div class="row">
-                    <div class="col-12">
-                        <!-- SQL Executor -->
-                        <div class="sql-container mb-4">
-                            <div class="sql-header">
-                                <i class="fas fa-database me-2"></i>
-                                SQL Executor
-                            </div>
-                            <div class="sql-content">
-                                <form id="sqlForm">
-                                    <div class="row">
-                                        <div class="col-md-8">
-                                            <label class="form-label fw-bold">SQL Query:</label>
+                        <div class="card-body">
+                            <!-- SQL Executor -->
+                            <div class="card mb-6">
+                                <div class="card-header">
+                                    <div class="card-title">SQL Executor</div>
+                                    <div class="card-description">
+                                        Execute raw SQL queries with pagination and security validation
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <form id="sqlForm">
+                                        <div class="form-group">
+                                            <label class="form-label">SQL Query</label>
                                             <textarea 
                                                 id="sqlQuery" 
-                                                class="form-control sql-textarea" 
-                                                rows="6"
-                                                placeholder="SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10;"></textarea>
-                                            <div class="form-check mt-3">
-                                                <input type="checkbox" class="form-check-input" id="confirmDangerous">
-                                                <label class="form-check-label small text-muted">
-                                                    Confirm execution of potentially dangerous operations (DROP, DELETE, etc.)
-                                                </label>
+                                                class="sql-textarea" 
+                                                placeholder="Enter your SQL query here...
+Example: SELECT * FROM execution_history ORDER BY executed_at DESC LIMIT 10"
+                                                rows="8"
+                                            ></textarea>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-3 gap-4 mb-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Page Size</label>
+                                                <select id="pageSize" class="form-select">
+                                                    <option value="10">10 rows</option>
+                                                    <option value="25">25 rows</option>
+                                                    <option value="50" selected>50 rows</option>
+                                                    <option value="100">100 rows</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Page</label>
+                                                <input type="number" id="page" class="form-input" value="1" min="1">
+                                            </div>
+                                            <div class="form-group">
+                                                <div class="form-checkbox">
+                                                    <input type="checkbox" id="confirmDangerous">
+                                                    <label class="form-label">Confirm dangerous operations</label>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Quick Queries:</label>
-                                            <div class="d-grid gap-2">
-                                                <button type="button" class="btn btn-outline-info btn-sm" 
-                                                    onclick="setSqlQuery('SELECT * FROM execution_logs ORDER BY created_at DESC LIMIT 10')">
-                                                    Recent Logs
-                                                </button>
-                                                <button type="button" class="btn btn-outline-info btn-sm" 
-                                                    onclick="setSqlQuery('SELECT * FROM workflow_executions ORDER BY created_at DESC LIMIT 10')">
-                                                    Recent Executions
-                                                </button>
-                                                <button type="button" class="btn btn-outline-info btn-sm" 
-                                                    onclick="setSqlQuery('SELECT name, type FROM sqlite_master WHERE type IN (\'table\', \'view\') ORDER BY name')">
-                                                    Show Tables
-                                                </button>
-                                                <button type="button" class="btn btn-outline-info btn-sm" 
-                                                    onclick="setSqlQuery('SELECT COUNT(*) as total_executions, AVG(execution_time) as avg_time FROM workflow_executions')">
-                                                    Statistics
-                                                </button>
-                                                <hr>
-                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="reloadRegistry()">
-                                                    <i class="fas fa-sync-alt me-1"></i> Reload Registry
-                                                </button>
-                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="showDatabaseTables()">
-                                                    <i class="fas fa-table me-1"></i> Browse Tables
-                                                </button>
+                                        
+                                        <div class="flex gap-2">
+                                            <button type="submit" class="btn btn-primary">
+                                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                                </svg>
+                                                Execute Query
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" onclick="validateSQL()">
+                                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                Validate Only
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" onclick="clearSQL()">
+                                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </form>
+                                    
+                                    <div id="sqlResults" class="sql-results hidden">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <div class="card-title">Query Results</div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="sqlResultsContent">
+                                                    <!-- Results will be populated here -->
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="mt-4">
-                                        <button type="submit" class="btn btn-warning me-2">
-                                            <i class="fas fa-play me-2"></i>
-                                            Execute SQL
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" onclick="clearSqlQuery()">
-                                            <i class="fas fa-eraser me-2"></i>
-                                            Clear
-                                        </button>
-                                    </div>
-                                </form>
-                                
-                                <div class="sql-results" id="sqlResults"></div>
-                            </div>
-                        </div>
-
-                        <!-- System Status -->
-                        <div class="sql-container">
-                            <div class="sql-header">
-                                <i class="fas fa-chart-line me-2"></i>
-                                System Status
-                            </div>
-                            <div class="sql-content">
-                                <div id="systemStatus">
-                                    <div class="text-center py-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2">Loading system status...</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- Analytics Tab -->
+                <div id="analyticsTab" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">System Analytics</div>
+                            <div class="card-description">
+                                Performance metrics and usage statistics
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="analyticsContent">
+                                <!-- Analytics will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <!-- Enhanced JavaScript with Modern Features -->
     <script>
-        // Configuration
-        const API_BASE = '/api';
-        const AUTH_TOKEN = 'devtoken123';
+        // Global state management
+        const AppState = {
+            currentTab: 'chat',
+            connected: false,
+            agents: [],
+            workflows: [],
+            websocket: null,
+            lastQueryResults: null
+        };
 
-        // State
-        let conversationHistory = [];
-        let currentExecution = null;
-        let sqlHistory = [];
+        // API Configuration
+        const API_CONFIG = {
+            BASE_URL: '/api',
+            WS_URL: `ws://${window.location.host}/ws`,
+            AUTH_TOKEN: 'devtoken123', // In production, this should come from secure authentication
+            TIMEOUT: 30000
+        };
 
-        // Helper functions
-        function makeRequest(url, options = {}) {
-            return fetch(url, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${AUTH_TOKEN}`,
-                    ...options.headers
+        // Enhanced API client with error handling and retry logic
+        class APIClient {
+            constructor(config) {
+                this.config = config;
+                this.retryAttempts = 3;
+                this.retryDelay = 1000;
+            }
+
+            async makeRequest(endpoint, options = {}) {
+                const url = `${this.config.BASE_URL}${endpoint}`;
+                const config = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.config.AUTH_TOKEN}`,
+                        ...options.headers
+                    },
+                    ...options
+                };
+
+                if (config.method !== 'GET' && options.body) {
+                    config.body = JSON.stringify(options.body);
+                }
+
+                for (let attempt = 0; attempt < this.retryAttempts; attempt++) {
+                    try {
+                        const response = await fetch(url, config);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        return response;
+                    } catch (error) {
+                        if (attempt === this.retryAttempts - 1) {
+                            throw error;
+                        }
+                        
+                        await this.delay(this.retryDelay * Math.pow(2, attempt));
+                    }
+                }
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        const apiClient = new APIClient(API_CONFIG);
+
+        // WebSocket manager with reconnection logic
+        class WebSocketManager {
+            constructor(url) {
+                this.url = url;
+                this.reconnectInterval = 5000;
+                this.maxReconnectAttempts = 10;
+                this.reconnectAttempts = 0;
+                this.connect();
+            }
+
+            connect() {
+                try {
+                    this.websocket = new WebSocket(this.url);
+                    this.setupEventHandlers();
+                } catch (error) {
+                    console.error('WebSocket connection failed:', error);
+                    this.scheduleReconnect();
+                }
+            }
+
+            setupEventHandlers() {
+                this.websocket.onopen = () => {
+                    AppState.connected = true;
+                    this.reconnectAttempts = 0;
+                    this.updateConnectionStatus(true);
+                    console.log('WebSocket connected');
+                };
+
+                this.websocket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        this.handleMessage(message);
+                    } catch (error) {
+                        console.error('Failed to parse WebSocket message:', error);
+                    }
+                };
+
+                this.websocket.onclose = () => {
+                    AppState.connected = false;
+                    this.updateConnectionStatus(false);
+                    console.log('WebSocket disconnected');
+                    this.scheduleReconnect();
+                };
+
+                this.websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    AppState.connected = false;
+                    this.updateConnectionStatus(false);
+                };
+            }
+
+            handleMessage(message) {
+                switch (message.type) {
+                    case 'connected':
+                        console.log('WebSocket connection confirmed');
+                        break;
+                    case 'execution_progress':
+                        this.updateExecutionProgress(message.data);
+                        break;
+                    case 'execution_complete':
+                        this.handleExecutionComplete(message.data);
+                        break;
+                    case 'execution_error':
+                        this.handleExecutionError(message.data);
+                        break;
+                    default:
+                        console.log('Unknown message type:', message.type);
+                }
+            }
+
+            scheduleReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    setTimeout(() => {
+                        console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                        this.connect();
+                    }, this.reconnectInterval);
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const statusElement = document.getElementById('connectionStatus');
+                if (connected) {
+                    statusElement.className = 'connection-status connected';
+                    statusElement.innerHTML = '<div class="status-dot"></div><span>Connected</span>';
+                } else {
+                    statusElement.className = 'connection-status disconnected';
+                    statusElement.innerHTML = '<div class="status-dot"></div><span>Disconnected</span>';
+                }
+            }
+
+            updateExecutionProgress(data) {
+                // Update any progress indicators
+                console.log('Execution progress:', data);
+            }
+
+            handleExecutionComplete(data) {
+                hideTyping();
+                if (data.final_result) {
+                    addMessage(data.final_result.formatted_output || JSON.stringify(data.final_result.result, null, 2), 'assistant', data);
+                }
+            }
+
+            handleExecutionError(data) {
+                hideTyping();
+                addMessage(`❌ Execution failed: ${data.error}`, 'assistant');
+            }
+        }
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            console.log('🚀 Initializing Agentic Framework...');
+            
+            setupTabNavigation();
+            setupChatInterface();
+            setupSQLEditor();
+            
+            // Initialize WebSocket
+            const wsManager = new WebSocketManager(API_CONFIG.WS_URL);
+            AppState.websocketManager = wsManager;
+            
+            // Load initial data
+            await Promise.all([
+                loadAgents(),
+                loadWorkflows(),
+                loadAnalytics()
+            ]);
+            
+            // Setup auto-refresh for analytics
+            setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
+            
+            console.log('✅ Agentic Framework initialized successfully');
+        }
+
+        // Tab navigation
+        function setupTabNavigation() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const tabName = link.dataset.tab;
+                    switchTab(tabName);
+                });
+            });
+        }
+
+        function switchTab(tabName) {
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.tab === tabName) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Show/hide tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const targetTab = document.getElementById(`${tabName}Tab`);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                AppState.currentTab = tabName;
+                
+                // Load tab-specific content
+                loadTabContent(tabName);
+            }
+        }
+
+        async function loadTabContent(tabName) {
+            switch (tabName) {
+                case 'agents':
+                    await loadAgents();
+                    break;
+                case 'workflows':
+                    await loadWorkflows();
+                    break;
+                case 'admin':
+                    await loadAdminData();
+                    break;
+                case 'analytics':
+                    await loadAnalytics();
+                    break;
+            }
+        }
+
+        // Chat interface
+        function setupChatInterface() {
+            const chatForm = document.getElementById('chatForm');
+            const chatInput = document.getElementById('chatInput');
+            
+            chatForm.addEventListener('submit', handleChatSubmit);
+            
+            // Auto-resize textarea
+            chatInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+            });
+            
+            // Handle Enter key (Shift+Enter for new line)
+            chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit'));
                 }
             });
         }
 
-        function addMessage(content, type = 'assistant', data = null) {
-            const messagesContainer = document.getElementById('chatMessages');
-            const welcomeMessage = document.getElementById('welcomeMessage');
+        async function handleChatSubmit(e) {
+            e.preventDefault();
             
-            if (welcomeMessage) {
-                welcomeMessage.style.display = 'none';
-            }
-
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message message-${type}`;
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = chatInput.value.trim();
             
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
+            if (!message) return;
             
-            if (type === 'system') {
-                contentDiv.innerHTML = `<i class="fas fa-info-circle me-2"></i>${content}`;
-            } else if (type === 'user') {
-                contentDiv.innerHTML = content;
-            } else {
-                contentDiv.innerHTML = content;
+            // Add user message
+            addMessage(message, 'user');
+            
+            // Clear input and disable form
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            sendButton.disabled = true;
+            
+            // Show typing indicator
+            showTyping();
+            
+            try {
+                const response = await apiClient.makeRequest('/query', {
+                    method: 'POST',
+                    body: { text: message }
+                });
                 
-                // Add execution results if available
-                if (data && data.final_result) {
-                    const resultDiv = document.createElement('div');
-                    resultDiv.className = 'result-content';
-                    resultDiv.innerHTML = formatResults(data);
-                    contentDiv.appendChild(resultDiv);
+                const result = await response.json();
+                
+                hideTyping();
+                
+                if (result.success) {
+                    const output = result.final_result?.formatted_output || 
+                                 JSON.stringify(result.final_result?.result, null, 2) ||
+                                 'Task completed successfully';
+                    
+                    addMessage(output, 'assistant', result);
+                    AppState.lastQueryResults = result;
+                } else {
+                    addMessage(`❌ Error: ${result.error || 'Unknown error occurred'}`, 'assistant');
                 }
+                
+            } catch (error) {
+                hideTyping();
+                addMessage(`❌ Connection error: ${error.message}`, 'assistant');
+            } finally {
+                sendButton.disabled = false;
             }
-            
-            messageDiv.appendChild(contentDiv);
-            messagesContainer.appendChild(messageDiv);
-            
-            // Scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            
-            return messageDiv;
         }
 
-        function formatResults(data) {
-            let html = '';
+        function addMessage(content, role, metadata = null) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${role}`;
             
-            if (data.final_result) {
-                const result = data.final_result;
-                
-                if (result.type === 'market_research' && result.findings) {
-                    html += '<h6 class="text-primary mb-3"><i class="fas fa-chart-line me-2"></i>Market Research Results</h6>';
-                    if (result.findings.length > 0) {
-                        html += '<div class="result-table">';
-                        html += '<table class="table table-sm mb-0">';
-                        html += '<thead><tr><th>Finding</th><th>Source</th></tr></thead><tbody>';
-                        result.findings.slice(0, 5).forEach(finding => {
-                            const title = finding.title || finding.summary || 'Finding';
-                            const source = finding.url || 'Internal Analysis';
-                            html += `<tr><td>${title}</td><td><a href="${source}" target="_blank" class="text-decoration-none">${source}</a></td></tr>`;
-                        });
-                        html += '</tbody></table></div>';
-                    }
-                } else if (result.type === 'search_results' && result.items) {
-                    html += '<h6 class="text-primary mb-3"><i class="fas fa-search me-2"></i>Search Results</h6>';
-                    result.items.slice(0, 5).forEach(item => {
-                        html += `
-                            <div class="border-start border-3 border-primary ps-3 mb-3">
-                                <h6 class="mb-1"><a href="${item.url}" target="_blank" class="text-decoration-none">${item.title}</a></h6>
-                                <p class="mb-1 small text-muted">${item.snippet}</p>
-                                <small class="text-muted">${item.url}</small>
-                            </div>
-                        `;
-                    });
-                } else if (typeof result === 'number') {
-                    html += `<h6 class="text-primary mb-3"><i class="fas fa-calculator me-2"></i>Calculation Result</h6>`;
-                    html += `<div class="alert alert-info mb-0"><strong class="fs-4">${result}</strong></div>`;
-                } else {
-                    html += '<h6 class="text-primary mb-3"><i class="fas fa-check-circle me-2"></i>Results</h6>';
-                    html += `<pre class="bg-light p-3 rounded small"><code>${JSON.stringify(result, null, 2)}</code></pre>`;
-                }
+            const timestamp = new Date().toLocaleTimeString();
+            const avatar = role === 'user' ? 'You' : 'AI';
+            const roleName = role === 'user' ? 'You' : 'Assistant';
+            
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">${avatar}</div>
+                    <span class="message-role">${roleName}</span>
+                    <span class="message-time">${timestamp}</span>
+                </div>
+                <div class="message-content">${escapeHtml(content)}</div>
+            `;
+            
+            // Add metadata if available
+            if (metadata && role === 'assistant') {
+                const metadataElement = document.createElement('div');
+                metadataElement.className = 'message-metadata';
+                metadataElement.innerHTML = `
+                    <div class="metadata-item">
+                        <small>Execution Time: ${metadata.execution_time || 'N/A'}s</small>
+                    </div>
+                    <div class="metadata-item">
+                        <small>Trace ID: ${metadata.trace_id || 'N/A'}</small>
+                    </div>
+                `;
+                messageElement.appendChild(metadataElement);
             }
             
-            // Add execution status
-            if (data.results && data.results.length > 0) {
-                const successful = data.results.filter(r => r.success).length;
-                const total = data.results.length;
-                const statusClass = successful === total ? 'status-success' : (successful > 0 ? 'status-warning' : 'status-error');
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTyping() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const typingElement = document.createElement('div');
+            typingElement.id = 'typingIndicator';
+            typingElement.className = 'typing-indicator';
+            typingElement.innerHTML = `
+                <span>Assistant is thinking</span>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(typingElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typingElement = document.getElementById('typingIndicator');
+            if (typingElement) {
+                typingElement.remove();
+            }
+        }
+
+        // Load agents and tools
+        async function loadAgents() {
+            try {
+                const response = await apiClient.makeRequest('/agents');
+                const data = await response.json();
                 
-                html += `
-                    <div class="execution-status ${statusClass} mt-3">
-                        <div class="status-icon">
-                            <i class="fas fa-${successful === total ? 'check' : (successful > 0 ? 'exclamation-triangle' : 'times')}"></i>
+                if (data.success) {
+                    AppState.agents = data.agents;
+                    displayAgents(data.agents);
+                    updateAgentStats(data.agents);
+                }
+            } catch (error) {
+                console.error('Failed to load agents:', error);
+                displayAgentsError();
+            }
+        }
+
+        function displayAgents(agents) {
+            const container = document.getElementById('agentsList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            agents.forEach(agent => {
+                const agentCard = document.createElement('div');
+                agentCard.className = 'card';
+                agentCard.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${escapeHtml(agent.name)}</div>
+                        <div class="card-description">${escapeHtml(agent.description || 'No description available')}</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <span class="badge badge-info">
+                                ${agent.tools?.length || 0} Tools Available
+                            </span>
+                            <span class="badge badge-secondary">
+                                ${agent.transport || 'HTTP'}
+                            </span>
                         </div>
-                        <div>
-                            <strong>Execution Complete:</strong> ${successful}/${total} steps successful
-                            ${data.execution_time ? `in ${data.execution_time.toFixed(2)}s` : ''}
+                        
+                        <div class="tools-list">
+                            <h4 class="font-semibold mb-2">Available Tools:</h4>
+                            ${agent.tools?.map(tool => `
+                                <div class="tool-item mb-2">
+                                    <div class="font-medium">${escapeHtml(tool.name)}</div>
+                                    <div class="text-sm text-gray-600">${escapeHtml(tool.description || 'No description')}</div>
+                                </div>
+                            `).join('') || '<div class="text-sm text-gray-500">No tools available</div>'}
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button class="btn btn-sm btn-secondary" onclick="testAgent('${agent.name}')">
+                                Test Connection
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(agentCard);
+            });
+        }
+
+        function updateAgentStats(agents) {
+            const totalAgentsElement = document.getElementById('totalAgents');
+            const totalToolsElement = document.getElementById('totalTools');
+            
+            if (totalAgentsElement) {
+                totalAgentsElement.textContent = agents.length;
+            }
+            
+            if (totalToolsElement) {
+                const totalTools = agents.reduce((sum, agent) => sum + (agent.tools?.length || 0), 0);
+                totalToolsElement.textContent = totalTools;
+            }
+        }
+
+        function displayAgentsError() {
+            const container = document.getElementById('agentsList');
+            if (container) {
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-error mb-2">Failed to load agents</div>
+                            <button class="btn btn-primary" onclick="loadAgents()">Retry</button>
                         </div>
                     </div>
                 `;
             }
-            
-            return html;
         }
 
-        function showTyping(show = true) {
-            const indicator = document.getElementById('typingIndicator');
-            indicator.style.display = show ? 'block' : 'none';
-            
-            if (show) {
-                const messagesContainer = document.getElementById('chatMessages');
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        }
-
-        function setQuickQuery(query) {
-            document.getElementById('chatInput').value = query;
-            document.getElementById('chatInput').focus();
-        }
-
-        // Chat form handling
-        document.getElementById('chatForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const input = document.getElementById('chatInput');
-            const query = input.value.trim();
-            
-            if (!query) return;
-            
-            // Add user message
-            addMessage(query, 'user');
-            conversationHistory.push({type: 'user', content: query});
-            
-            // Clear input and show typing
-            input.value = '';
-            showTyping(true);
-            
-            // Disable send button
-            const sendButton = document.getElementById('sendButton');
-            sendButton.disabled = true;
-            
+        async function testAgent(agentName) {
             try {
-                const response = await makeRequest(`${API_BASE}/query`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        text: query,
-                        options: {},
-                        context: {
-                            conversation_history: conversationHistory.slice(-5)
-                        }
-                    })
-                });
-                
-                const result = await response.json();
-                
-                showTyping(false);
-                
-                if (response.ok && result.success) {
-                    let assistantMessage = `✅ Great! I've completed your request successfully.`;
-                    
-                    if (result.intent === 'market_research') {
-                        assistantMessage = `📊 I've completed market research analysis for you. Here are the key findings:`;
-                    } else if (result.intent === 'web_search') {
-                        assistantMessage = `🔍 I found relevant information for your search:`;
-                    } else if (result.intent === 'calculation') {
-                        assistantMessage = `🧮 Here's your calculation result:`;
-                    } else if (result.intent === 'data_analysis') {
-                        assistantMessage = `📈 I've analyzed the data for you:`;
-                    }
-                    
-                    addMessage(assistantMessage, 'assistant', result);
-                    conversationHistory.push({type: 'assistant', content: assistantMessage});
-                } else {
-                    const errorMessage = result.error || result.detail || 'Something went wrong. Please try again.';
-                    addMessage(`❌ I encountered an error: ${errorMessage}`, 'assistant');
-                    conversationHistory.push({type: 'assistant', content: `Error: ${errorMessage}`});
-                }
-                
-            } catch (error) {
-                showTyping(false);
-                addMessage(`❌ Connection error: ${error.message}`, 'assistant');
-            } finally {
-                sendButton.disabled = false;
-                input.focus();
-            }
-        });
-
-        // Handle Enter key in textarea
-        document.getElementById('chatInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                document.getElementById('chatForm').dispatchEvent(new Event('submit'));
-            }
-        });
-
-        // Load agents
-        async function loadAgents(includeHealth = true) {
-            try {
-                const response = await makeRequest(`${API_BASE}/agents?include_health=${includeHealth}`);
+                const response = await apiClient.makeRequest(`/agents/${agentName}/health`);
                 const data = await response.json();
                 
-                const container = document.getElementById('agentsList');
-                container.innerHTML = '';
-                
-                if (data.agents && data.agents.length > 0) {
-                    data.agents.forEach(agent => {
-                        const agentDiv = document.createElement('div');
-                        agentDiv.className = 'agent-card';
-                        
-                        let healthBadge = '';
-                        if (agent.health) {
-                            const statusClass = agent.health.status === 'healthy' ? 'status-healthy' : 'status-unhealthy';
-                            healthBadge = `<span class="agent-status ${statusClass}">
-                                <i class="fas fa-circle"></i>
-                                ${agent.health.status}
-                            </span>`;
-                        }
-                        
-                        agentDiv.innerHTML = `
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="mb-0">${agent.name}</h5>
-                                ${healthBadge}
-                            </div>
-                            <p class="text-muted mb-2">${agent.description}</p>
-                            <div class="small">
-                                <strong>Endpoint:</strong> ${agent.endpoint}<br>
-                                <strong>Tools:</strong> ${agent.tools.length} available
-                            </div>
-                            <div class="mt-3">
-                                <button class="btn btn-sm btn-outline-primary me-2" onclick="viewAgentDetails('${agent.name}')">
-                                    <i class="fas fa-eye me-1"></i> View Tools
-                                </button>
-                                <button class="btn btn-sm btn-outline-success" onclick="testAgentHealth('${agent.name}')">
-                                    <i class="fas fa-heartbeat me-1"></i> Test Health
-                                </button>
-                            </div>
-                        `;
-                        
-                        agentDiv.onclick = () => viewAgentDetails(agent.name);
-                        container.appendChild(agentDiv);
-                    });
+                if (data.success) {
+                    alert(`✅ ${agentName} is healthy and responsive`);
                 } else {
-                    container.innerHTML = '<div class="text-center text-muted py-4">No agents available</div>';
+                    alert(`❌ ${agentName} health check failed: ${data.error}`);
                 }
             } catch (error) {
-                document.getElementById('agentsList').innerHTML = '<div class="text-danger text-center py-4">Failed to load agents</div>';
-            }
-        }
-
-        async function refreshAgents() {
-            document.getElementById('agentsList').innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <div class="mt-3">Refreshing agents...</div>
-                </div>
-            `;
-            await loadAgents();
-        }
-
-        async function viewAgentDetails(agentName) {
-            try {
-                const response = await makeRequest(`${API_BASE}/agents/${agentName}/tools`);
-                const data = await response.json();
-                
-                let toolsHtml = '';
-                if (data.tools && data.tools.length > 0) {
-                    data.tools.forEach(tool => {
-                        const params = typeof tool.parameters === 'object' ? 
-                            Object.entries(tool.parameters).map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`).join(', ') :
-                            tool.parameters || 'None';
-                        
-                        toolsHtml += `
-                            <div class="border rounded p-3 mb-2">
-                                <h6 class="mb-1">${tool.name}</h6>
-                                <p class="mb-1 small text-muted">${tool.description}</p>
-                                <small class="text-muted">Parameters: ${params}</small>
-                                <div class="mt-2">
-                                    <button class="btn btn-xs btn-outline-primary" onclick="testTool('${agentName}', '${tool.name}')">
-                                        <i class="fas fa-play me-1"></i> Test
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                } else {
-                    toolsHtml = '<p class="text-muted">No tools available</p>';
-                }
-                
-                addMessage(`
-                    <strong>🤖 Agent: ${agentName}</strong><br>
-                    <strong>Tools Available:</strong> ${data.tools.length}<br>
-                    <strong>Source:</strong> ${data.source || 'registry'}<br>
-                    <div class="mt-3">${toolsHtml}</div>
-                `, 'system');
-                
-            } catch (error) {
-                addMessage(`❌ Failed to load tools for ${agentName}: ${error.message}`, 'system');
-            }
-        }
-
-        async function testTool(agentName, toolName) {
-            const params = prompt(`Enter parameters for ${toolName} (JSON format):`);
-            if (!params) return;
-            
-            try {
-                const parsedParams = JSON.parse(params);
-                const response = await makeRequest(`${API_BASE}/agents/${agentName}/tools/${toolName}`, {
-                    method: 'POST',
-                    body: JSON.stringify(parsedParams)
-                });
-                
-                const result = await response.json();
-                
-                addMessage(`
-                    <strong>🧪 Tool Test Result</strong><br>
-                    <strong>Agent:</strong> ${agentName}<br>
-                    <strong>Tool:</strong> ${toolName}<br>
-                    <strong>Success:</strong> ${result.result?.success ? '✅ Yes' : '❌ No'}<br>
-                    <pre class="mt-2 bg-light p-2 rounded small"><code>${JSON.stringify(result, null, 2)}</code></pre>
-                `, 'system');
-                
-            } catch (error) {
-                addMessage(`❌ Tool test failed: ${error.message}`, 'system');
-            }
-        }
-
-        async function testAgentHealth(agentName) {
-            try {
-                const response = await makeRequest(`${API_BASE}/agents/${agentName}/health`);
-                const result = await response.json();
-                
-                const statusIcon = result.status === 'healthy' ? '✅' : '❌';
-                addMessage(`
-                    <strong>${statusIcon} Health Check: ${agentName}</strong><br>
-                    <strong>Status:</strong> ${result.status}<br>
-                    <strong>Endpoint:</strong> ${result.endpoint}<br>
-                    <strong>Last Checked:</strong> ${new Date(result.last_checked * 1000).toLocaleString()}<br>
-                    ${result.details ? `<pre class="mt-2 bg-light p-2 rounded small"><code>${JSON.stringify(result.details, null, 2)}</code></pre>` : ''}
-                `, 'system');
-                
-            } catch (error) {
-                addMessage(`❌ Health check failed for ${agentName}: ${error.message}`, 'system');
+                alert(`❌ Failed to test ${agentName}: ${error.message}`);
             }
         }
 
         // Load workflows
         async function loadWorkflows() {
             try {
-                const response = await makeRequest(`${API_BASE}/workflows`);
+                const response = await apiClient.makeRequest('/workflows');
                 const data = await response.json();
                 
-                const container = document.getElementById('workflowsList');
-                container.innerHTML = '';
-                
-                if (data.workflows && data.workflows.length > 0) {
-                    data.workflows.forEach(workflow => {
-                        const workflowDiv = document.createElement('div');
-                        workflowDiv.className = 'workflow-card';
-                        workflowDiv.onclick = () => runWorkflow(workflow.id);
-                        workflowDiv.innerHTML = `
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="mb-0">${workflow.name}</h5>
-                                <span class="badge badge-custom bg-primary">${workflow.intent}</span>
-                            </div>
-                            <p class="text-muted mb-2">${workflow.description}</p>
-                            <div class="small text-muted">
-                                <strong>Nodes:</strong> ${workflow.nodes} steps
-                            </div>
-                            <div class="mt-3">
-                                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); runWorkflow('${workflow.id}')">
-                                    <i class="fas fa-play me-1"></i> Run Workflow
-                                </button>
-                            </div>
-                        `;
-                        container.appendChild(workflowDiv);
-                    });
-                } else {
-                    container.innerHTML = '<div class="text-center text-muted py-4">No workflows available</div>';
+                if (data.success) {
+                    AppState.workflows = data.workflows;
+                    displayWorkflows(data.workflows);
                 }
             } catch (error) {
-                document.getElementById('workflowsList').innerHTML = '<div class="text-danger text-center py-4">Failed to load workflows</div>';
+                console.error('Failed to load workflows:', error);
+                displayWorkflowsError();
             }
         }
 
-        async function refreshWorkflows() {
-            document.getElementById('workflowsList').innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-success" role="status"></div>
-                    <div class="mt-3">Refreshing workflows...</div>
-                </div>
-            `;
-            await loadWorkflows();
+        function displayWorkflows(workflows) {
+            const container = document.getElementById('workflowsContent');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            if (workflows.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-muted mb-4">No workflows available</div>
+                        <button class="btn btn-primary" onclick="showCreateWorkflowModal()">
+                            Create Your First Workflow
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const workflowGrid = document.createElement('div');
+            workflowGrid.className = 'grid grid-cols-1 gap-4';
+            
+            workflows.forEach(workflow => {
+                const workflowCard = document.createElement('div');
+                workflowCard.className = 'card';
+                workflowCard.innerHTML = `
+                    <div class="card-header">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="card-title">${escapeHtml(workflow.name)}</div>
+                                <div class="card-description">${escapeHtml(workflow.description)}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <span class="badge badge-info">${workflow.type || 'custom'}</span>
+                                <span class="badge badge-secondary">${workflow.intent}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <div class="text-sm font-medium mb-2">Tags:</div>
+                            <div class="flex flex-wrap gap-1">
+                                ${workflow.tags?.map(tag => `
+                                    <span class="badge badge-secondary">${escapeHtml(tag)}</span>
+                                `).join('') || '<span class="text-muted">No tags</span>'}
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary btn-sm" onclick="runWorkflow('${workflow.id}')">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2-10h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                                Run Workflow
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="viewWorkflow('${workflow.id}')">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View Details
+                            </button>
+                            ${workflow.type === 'user_defined' ? `
+                                <button class="btn btn-error btn-sm" onclick="deleteWorkflow('${workflow.id}')">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                    Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                workflowGrid.appendChild(workflowCard);
+            });
+            
+            container.appendChild(workflowGrid);
+        }
+
+        function displayWorkflowsError() {
+            const container = document.getElementById('workflowsContent');
+            if (container) {
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-error mb-2">Failed to load workflows</div>
+                            <button class="btn btn-primary" onclick="loadWorkflows()">Retry</button>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         async function runWorkflow(workflowId) {
-            addMessage(`🚀 Running workflow: ${workflowId}`, 'system');
-            showTyping(true);
+            // Switch to chat tab and run workflow
+            switchTab('chat');
             
             try {
-                const response = await makeRequest(`${API_BASE}/workflows/${workflowId}/run`, {
-                    method: 'POST',
-                    body: JSON.stringify({})
-                });
+                showTyping();
                 
-                const result = await response.json();
-                showTyping(false);
-                
-                if (response.ok && result.success) {
-                    addMessage(`✅ Workflow completed successfully!`, 'assistant', result);
-                } else {
-                    addMessage(`❌ Workflow failed: ${result.error || 'Unknown error'}`, 'assistant');
-                }
-            } catch (error) {
-                showTyping(false);
-                addMessage(`❌ Connection error: ${error.message}`, 'assistant');
-            }
-        }
-
-        // SQL Functions
-        function setSqlQuery(query) {
-            document.getElementById('sqlQuery').value = query;
-        }
-
-        function clearSqlQuery() {
-            document.getElementById('sqlQuery').value = '';
-            document.getElementById('sqlResults').innerHTML = '';
-        }
-
-        document.getElementById('sqlForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const sqlQuery = document.getElementById('sqlQuery').value.trim();
-            const confirmDangerous = document.getElementById('confirmDangerous').checked;
-            
-            if (!sqlQuery) return;
-            
-            // Add to history
-            if (!sqlHistory.includes(sqlQuery)) {
-                sqlHistory.unshift(sqlQuery);
-                if (sqlHistory.length > 10) sqlHistory = sqlHistory.slice(0, 10);
-            }
-            
-            try {
-                const response = await makeRequest(`${API_BASE}/admin/sql`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        query: sqlQuery,
-                        confirm_dangerous: confirmDangerous,
-                        page: 1,
-                        page_size: 100
-                    })
-                });
-                
-                const result = await response.json();
-                const resultsContainer = document.getElementById('sqlResults');
-                
-                if (response.ok && result.success) {
-                    if (result.data && result.data.length > 0) {
-                        resultsContainer.innerHTML = `
-                            <h6 class="text-success mb-3">
-                                <i class="fas fa-check-circle me-2"></i>
-                                Query Results (${result.row_count} rows)
-                            </h6>
-                            ${result.pagination ? `
-                                <div class="pagination-info">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Page ${result.pagination.page} | Execution time: ${result.pagination.execution_time_ms}ms
-                                    ${result.query_analysis ? ` | Type: ${result.query_analysis.type} | Complexity: ${result.query_analysis.estimated_complexity}` : ''}
-                                </div>
-                            ` : ''}
-                            <div class="responsive-table mt-3">
-                                ${createSqlTable(result.data, result.columns)}
-                            </div>
-                        `;
-                    } else {
-                        resultsContainer.innerHTML = `
-                            <div class="alert alert-success">
-                                <i class="fas fa-check me-2"></i>
-                                ${result.message || 'Query executed successfully'}
-                                ${result.rows_affected !== undefined ? ` (${result.rows_affected} rows affected)` : ''}
-                            </div>
-                        `;
-                    }
-                } else {
-                    resultsContainer.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Error:</strong> ${result.error || result.detail}
-                            ${result.dangerous_keywords ? `<br><small>Dangerous keywords detected: ${result.dangerous_keywords.join(', ')}</small>` : ''}
-                            ${result.suggestion ? `<br><small class="text-muted">${result.suggestion}</small>` : ''}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                document.getElementById('sqlResults').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Connection error: ${error.message}
-                    </div>
-                `;
-            }
-        });
-
-        function createSqlTable(data, columns) {
-            let html = '<table class="table table-striped table-hover table-sm"><thead class="table-dark"><tr>';
-            columns.forEach(col => {
-                html += `<th>${col}</th>`;
-            });
-            html += '</tr></thead><tbody>';
-            
-            data.slice(0, 1000).forEach(row => { // Limit to 1000 rows for performance
-                html += '<tr>';
-                columns.forEach(col => {
-                    let value = row[col];
-                    if (value === null || value === undefined) {
-                        value = '<span class="text-muted fst-italic">NULL</span>';
-                    } else if (typeof value === 'string' && value.length > 100) {
-                        value = `<span title="${value.replace(/"/g, '&quot;')}">${value.substring(0, 100)}...</span>`;
-                    } else if (typeof value === 'number') {
-                        value = `<span class="text-end">${value}</span>`;
-                    }
-                    html += `<td>${value}</td>`;
-                });
-                html += '</tr>';
-            });
-            
-            html += '</tbody></table>';
-            
-            if (data.length > 1000) {
-                html += `<div class="text-muted text-center mt-2"><small>Showing first 1000 of ${data.length} rows</small></div>`;
-            }
-            
-            return html;
-        }
-
-        async function showDatabaseTables() {
-            try {
-                const response = await makeRequest(`${API_BASE}/admin/tables`);
-                const result = await response.json();
-                
-                if (result.success && result.tables) {
-                    let tablesHtml = '<h6 class="mb-3">Database Schema:</h6>';
-                    result.tables.forEach(table => {
-                        tablesHtml += `
-                            <div class="border rounded p-2 mb-2">
-                                <strong>${table.name}</strong> 
-                                <span class="badge bg-secondary ms-2">${table.type}</span>
-                                ${table.row_count !== undefined ? `<span class="badge bg-info ms-1">${table.row_count} rows</span>` : ''}
-                                ${table.columns !== undefined ? `<span class="badge bg-success ms-1">${table.columns} columns</span>` : ''}
-                                <button class="btn btn-xs btn-outline-primary ms-2" onclick="setSqlQuery('SELECT * FROM ${table.name} LIMIT 10')">
-                                    <i class="fas fa-eye"></i> Preview
-                                </button>
-                            </div>
-                        `;
-                    });
-                    
-                    document.getElementById('sqlResults').innerHTML = tablesHtml;
-                } else {
-                    document.getElementById('sqlResults').innerHTML = `
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Failed to load database tables
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                document.getElementById('sqlResults').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Error loading tables: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        async function reloadRegistry() {
-            try {
-                const response = await makeRequest(`${API_BASE}/registry/reload`, {
+                const response = await apiClient.makeRequest(`/workflows/${workflowId}/run`, {
                     method: 'POST'
                 });
                 
-                if (response.ok) {
-                    addMessage('🔄 Registry reloaded successfully', 'system');
-                    loadAgents();
-                    loadWorkflows();
+                const result = await response.json();
+                
+                hideTyping();
+                
+                if (result.success) {
+                    const output = result.final_result?.formatted_output || 
+                                 JSON.stringify(result.final_result?.result, null, 2) ||
+                                 'Workflow completed successfully';
+                    
+                    addMessage(`🔄 Workflow "${workflowId}" executed`, 'user');
+                    addMessage(output, 'assistant', result);
                 } else {
-                    const result = await response.json();
-                    addMessage(`❌ Registry reload failed: ${result.detail}`, 'system');
+                    addMessage(`❌ Workflow failed: ${result.error}`, 'assistant');
                 }
+                
             } catch (error) {
-                addMessage(`❌ Registry reload error: ${error.message}`, 'system');
+                hideTyping();
+                addMessage(`❌ Failed to run workflow: ${error.message}`, 'assistant');
             }
         }
 
-        async function checkSystemStatus() {
-            try {
-                const response = await makeRequest(`${API_BASE}/system/status`);
-                const status = await response.json();
-                
-                let statusHtml = `
-                    <h6 class="mb-3"><i class="fas fa-heartbeat me-2"></i>System Status</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>System</h6>
-                            <p><strong>Status:</strong> <span class="badge ${status.system.status === 'operational' ? 'bg-success' : 'bg-warning'}">${status.system.status}</span></p>
-                            <p><strong>Version:</strong> ${status.system.version}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Agents</h6>
-                            <p><strong>Total:</strong> ${status.agents.total}</p>
-                            <p><strong>Healthy:</strong> <span class="text-success">${status.agents.healthy}</span></p>
-                            <p><strong>Unhealthy:</strong> <span class="text-danger">${status.agents.unhealthy}</span></p>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Workflows</h6>
-                            <p><strong>Total:</strong> ${status.workflows.total}</p>
-                            <p><strong>Available:</strong> ${status.workflows.available}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Database</h6>
-                            <p><strong>Status:</strong> <span class="badge bg-success">${status.database.status}</span></p>
-                        </div>
-                    </div>
-                `;
-                
-                document.getElementById('systemStatus').innerHTML = statusHtml;
-                
-            } catch (error) {
-                document.getElementById('systemStatus').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Failed to load system status: ${error.message}
-                    </div>
-                `;
+        function viewWorkflow(workflowId) {
+            // Find workflow details and show modal
+            const workflow = AppState.workflows.find(w => w.id === workflowId);
+            if (workflow) {
+                alert(`Workflow Details:\n\nName: ${workflow.name}\nDescription: ${workflow.description}\nIntent: ${workflow.intent}\nNodes: ${workflow.nodes?.length || 0}`);
             }
         }
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAgents();
-            loadWorkflows();
-            checkSystemStatus();
-            document.getElementById('chatInput').focus();
+        async function deleteWorkflow(workflowId) {
+            if (!confirm('Are you sure you want to delete this workflow?')) {
+                return;
+            }
             
-            // Add welcome system message
-            setTimeout(() => {
-                addMessage('👋 Hello! I\'m your AI workflow assistant. What would you like me to help you with today?', 'system');
-            }, 1000);
-        });
+            try {
+                const response = await apiClient.makeRequest(`/workflows/${workflowId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Workflow deleted successfully');
+                    await loadWorkflows();
+                } else {
+                    alert(`Failed to delete workflow: ${result.error}`);
+                }
+                
+            } catch (error) {
+                alert(`Failed to delete workflow: ${error.message}`);
+            }
+        }
 
-        // Tab change handlers
-        document.getElementById('agents-tab').addEventListener('shown.bs.tab', function() {
-            loadAgents();
-        });
+        // SQL Editor functionality
+        function setupSQLEditor() {
+            const sqlForm = document.getElementById('sqlForm');
+            if (sqlForm) {
+                sqlForm.addEventListener('submit', executeSQLQuery);
+            }
+        }
 
-        document.getElementById('workflows-tab').addEventListener('shown.bs.tab', function() {
-            loadWorkflows();
-        });
+        async function executeSQLQuery(e) {
+            if (e) e.preventDefault();
+            
+            const query = document.getElementById('sqlQuery').value.trim();
+            const pageSize = parseInt(document.getElementById('pageSize').value);
+            const page = parseInt(document.getElementById('page').value);
+            const confirmDangerous = document.getElementById('confirmDangerous').checked;
+            
+            if (!query) {
+                alert('Please enter a SQL query');
+                return;
+            }
+            
+            try {
+                const response = await apiClient.makeRequest('/admin/sql', {
+                    method: 'POST',
+                    body: {
+                        query: query,
+                        page: page,
+                        page_size: pageSize,
+                        confirm_dangerous: confirmDangerous
+                    }
+                });
+                
+                const result = await response.json();
+                displaySQLResults(result);
+                AppState.lastQueryResults = result;
+                
+            } catch (error) {
+                displaySQLResults({
+                    success: false,
+                    error: error.message
+                });
+            }
+        }
 
-        document.getElementById('admin-tab').addEventListener('shown.bs.tab', function() {
-            checkSystemStatus();
-        });
+        function displaySQLResults(result) {
+            const resultsContainer = document.getElementById('sqlResults');
+            const contentContainer = document.getElementById('sqlResultsContent');
+            
+            resultsContainer.classList.remove('hidden');
+            
+            if (!result.success) {
+                contentContainer.innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="text-error">
+                                <strong>Query Failed:</strong> ${escapeHtml(result.error)}
+                            </div>
+                            ${result.dangerous_keywords ? `
+                                <div class="mt-2 text-warning">
+                                    <strong>Dangerous operations detected:</strong> ${result.dangerous_keywords.join(', ')}
+                                    <br>
+                                    <small>Enable "Confirm dangerous operations" to execute.</small>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="mb-4">
+                    <div class="flex justify-between items-center">
+                        <div class="text-success font-medium">✅ Query executed successfully</div>
+                        <div class="text-sm text-muted">
+                            Execution time: ${result.execution_time || 'N/A'}s
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (result.data && result.data.length > 0) {
+                html += `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                ${Object.keys(result.data[0]).map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.data.map(row => `
+                                <tr>
+                                    ${Object.values(row).map(value => `<td>${escapeHtml(value)}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                html += '<div class="text-muted">No results returned</div>';
+            }
+        }
+
+        <div class="mt-4">
+            <h4>Execution History</h4>
+            <div id="executionHistory"></div>
+        </div>
     </script>
 </body>
 </html>

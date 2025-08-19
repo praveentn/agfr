@@ -1,34 +1,83 @@
 # agentic/workflows/data_analysis.yaml
 id: data_analysis
 name: Data Analysis Workflow
-description: Analyze and tabulate data
+description: Comprehensive data analysis with insights extraction and visualization
 intent: data_analysis
+tags: ["analysis", "data", "insights", "visualization"]
+metadata:
+  author: system
+  version: "1.0"
+  created_at: "2025-01-01"
+  updated_at: "2025-01-15"
+  category: analysis
+  estimated_duration: "1-2 minutes"
+
 inputs:
-  data: ""
-  analysis_type: "general"
+  data_source:
+    type: string
+    required: true
+    description: "Data to analyze (text, JSON, or description)"
+  analysis_type:
+    type: string
+    default: "comprehensive"
+    enum: ["basic", "detailed", "comprehensive"]
+    description: "Depth of analysis"
+  output_format:
+    type: string
+    default: "table"
+    enum: ["table", "chart", "report"]
+    description: "Output format preference"
+
 plan:
+  id: data_analysis_plan
+  description: "Multi-step data analysis with insights and visualization"
   nodes:
-    - id: analyze
+    - id: analyze_data
+      agent: nlp_summarizer
+      tool: extract_insights
+      params:
+        text: "{{inputs.data_source}}"
+        insight_types: ["patterns", "trends", "anomalies", "key_metrics"]
+        business_context: "data_analysis"
+        priority: "{{inputs.analysis_type}}"
+      timeout_sec: 60
+      retries: 1
+      
+    - id: structure_insights
+      agent: tabulator
+      tool: ai_tabulate
+      params:
+        data: "{{results.analyze_data.data}}"
+        format: "analysis_insights"
+        columns: ["Metric/Pattern", "Value/Trend", "Significance", "Recommendation"]
+        ai_enhancement: true
+        style: "{{inputs.output_format}}"
+      depends_on: [analyze_data]
+      timeout_sec: 45
+      retries: 1
+      
+    - id: generate_summary
       agent: nlp_summarizer
       tool: summarize
       params:
-        text: "{{inputs.data}}"
-        style: "detailed"
-      description: "Analyze the data"
-    
-    - id: tabulate
-      agent: tabulator
-      tool: tabulate
-      params:
-        data: "{{results.analyze.data}}"
-        format: "json"
-      depends_on: ["analyze"]
-      description: "Create structured output"
+        text: "{{results.structure_insights.data}}"
+        max_length: 300
+        style: "executive"
+        focus: "actionable insights"
+        tone: "professional"
+      depends_on: [structure_insights]
+      timeout_sec: 30
+      retries: 1
+
+  edges:
+    - from: analyze_data
+      to: structure_insights
+      condition: "success"
+    - from: structure_insights
+      to: generate_summary
+      condition: "success"
 
 outputs:
-  format: table
-  
-metadata:
-  created_by: "system"
-  version: "1.0"
-  tags: ["analysis", "data"]
+  format: "analysis_report"
+  fields: ["executive_summary", "key_insights", "data_table", "recommendations", "methodology"]
+  style: "{{inputs.analysis_type}}"

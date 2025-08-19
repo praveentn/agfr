@@ -1,24 +1,64 @@
 # agentic/workflows/simple_search.yaml
 id: simple_search
 name: Simple Web Search
-description: Basic web search workflow
-intent: web_search
+description: Basic web search with intelligent summarization and result formatting
+intent: search
+tags: ["search", "web", "quick"]
+metadata:
+  author: system
+  version: "1.1"
+  created_at: "2025-01-01"
+  updated_at: "2025-01-15"
+  category: search
+  estimated_duration: "30-60 seconds"
+
 inputs:
-  query: ""
+  query:
+    type: string
+    required: true
+    description: "Search query"
+  max_results:
+    type: integer
+    default: 10
+    description: "Maximum number of search results"
+  include_summary:
+    type: boolean
+    default: true
+    description: "Include AI-generated summary"
+
 plan:
+  id: simple_search_plan  # FIXED: Added required plan.id field
+  description: "Simple web search with optional summarization"
   nodes:
-    - id: search
+    - id: web_search
       agent: web_search
       tool: search
       params:
         query: "{{inputs.query}}"
-        limit: 10
-      description: "Perform web search"
+        limit: "{{inputs.max_results}}"
+        include_snippets: true
+      timeout_sec: 30
+      retries: 2
+      
+    - id: summarize_results
+      agent: nlp_summarizer
+      tool: summarize
+      params:
+        text: "{{results.web_search.data}}"
+        max_length: 200
+        style: "brief"
+        focus: "key findings"
+      depends_on: [web_search]
+      condition: "{{inputs.include_summary}} == true"
+      timeout_sec: 30
+      retries: 1
+
+  edges:
+    - from: web_search
+      to: summarize_results
+      condition: "success AND inputs.include_summary"
 
 outputs:
-  format: list
-  
-metadata:
-  created_by: "system"
-  version: "1.0"
-  tags: ["search", "basic"]
+  format: "search_results"
+  fields: ["results", "summary", "total_found", "sources"]
+  style: "brief"

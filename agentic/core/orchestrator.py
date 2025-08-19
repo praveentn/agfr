@@ -1,925 +1,684 @@
 # agentic/core/orchestrator.py
 import asyncio
-import time
-import uuid
-import re
-import json
-from typing import Dict, Any, List, Set, Optional
-from collections import defaultdict, deque
 import logging
-from .types import DAG, Node, StepResult, ExecutionStatus
+import time
+import json
+from typing import Dict, Any, List, Optional, Set, Tuple
+from datetime import datetime
+from collections import defaultdict, deque
+
+from .types import DAG, Node, StepResult, ExecutionContext, ExecutionStatus
 from .mcp_client import MCPClientManager
-from .registry import registry
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
-class DataExtractor:
-    """Helper class to extract and transform data between workflow steps"""
+class WorkflowOrchestrator:
+    """Enhanced workflow orchestrator with intelligent parallel/sequential execution"""
     
-    @staticmethod
-    def extract_numbers(data: Any) -> List[float]:
-        """Extract all numbers from various data formats"""
-        numbers = []
+    def __init__(self, mcp_client_manager: MCPClientManager):
+        self.mcp_client = mcp_client_manager
+        self.active_executions: Dict[str, Dict[str, Any]] = {}
+        self.execution_history: List[Dict[str, Any]] = []
+        self.max_parallel_nodes = settings.mcp_max_parallel
         
-        if isinstance(data, (int, float)):
-            return [float(data)]
-        
-        if isinstance(data, str):
-            # Extract numbers from text using regex
-            number_patterns = [
-                r'\b\d+(?:,\d{3})*(?:\.\d+)?\b',  # Regular numbers with commas
-                r'\$\s*\d+(?:,\d{3})*(?:\.\d+)?\b',  # Currency
-                r'\d+(?:\.\d+)?\s*(?:dollars?|USD|\$)',  # Currency with text
-            ]
-            
-            for pattern in number_patterns:
-                matches = re.findall(pattern, data, re.IGNORECASE)
-                for match in matches:
-                    # Clean the match
-                    clean_num = re.sub(r'[^\d.]', '', match)
-                    if clean_num:
-                        try:
-                            numbers.append(float(clean_num))
-                        except ValueError:
-                            continue
-        
-        elif isinstance(data, dict):
-            # Extract from dictionary
-            if "numbers" in data:
-                numbers.extend(DataExtractor.extract_numbers(data["numbers"]))
-            elif "entities" in data and isinstance(data["entities"], dict):
-                # Extract from entity extraction results
-                entity_numbers = data["entities"].get("numbers", [])
-                for num_str in entity_numbers:
-                    numbers.extend(DataExtractor.extract_numbers(num_str))
-            else:
-                # Recursively search all values
-                for value in data.values():
-                    numbers.extend(DataExtractor.extract_numbers(value))
-        
-        elif isinstance(data, list):
-            for item in data:
-                numbers.extend(DataExtractor.extract_numbers(item))
-        
-        return numbers
+        # Performance tracking
+        self.node_performance: Dict[str, List[float]] = defaultdict(list)
+        self.execution_stats = {
+            "total_executions": 0,
+            "successful_executions": 0,
+            "failed_executions": 0,
+            "avg_execution_time": 0.0,
+            "total_nodes_executed": 0
+        }
     
-    @staticmethod
-    def find_calculation_values(data: Any, query_context: str = "") -> Dict[str, float]:
-        """Find specific calculation values based on context"""
-        numbers = DataExtractor.extract_numbers(data)
-        
-        # Smart mapping based on query context and found numbers
-        context_lower = query_context.lower()
-        
-        result = {}
-        
-        if len(numbers) >= 2:
-            # For sales calculations: quantity × price
-            if any(word in context_lower for word in ['sales', 'revenue', 'total', 'earning', 'sold', 'price']):
-                # Try to identify quantity vs price
-                sorted_numbers = sorted(numbers, reverse=True)
-                
-                # Heuristics for sales calculations
-                if 'iphones' in context_lower or 'phones' in context_lower:
-                    # Likely: large number = quantity, smaller = price or vice versa
-                    if len(numbers) >= 2:
-                        # Look for quantity indicators
-                        quantity_candidates = [n for n in numbers if n >= 10 and n <= 10000]  # Reasonable phone quantities
-                        price_candidates = [n for n in numbers if n >= 50 and n <= 5000]     # Reasonable phone prices
-                        
-                        if quantity_candidates and price_candidates:
-                            result['quantity'] = quantity_candidates[0]
-                            result['price'] = price_candidates[-1]  # Often the last/highest price mentioned
-                        else:
-                            # Fallback to first two numbers
-                            result['a'] = numbers[0]
-                            result['b'] = numbers[1]
-            
-            # For compound interest: principal, rate, time
-            elif any(word in context_lower for word in ['interest', 'compound', 'investment', 'rate']):
-                if len(numbers) >= 3:
-                    # Typically: principal (large), rate (small %), time (years)
-                    principal_candidates = [n for n in numbers if n >= 1000]
-                    rate_candidates = [n for n in numbers if 0 < n <= 100]
-                    time_candidates = [n for n in numbers if 1 <= n <= 50]
-                    
-                    if principal_candidates:
-                        result['principal'] = principal_candidates[0]
-                    if rate_candidates:
-                        result['rate'] = rate_candidates[0]
-                    if time_candidates:
-                        result['time'] = time_candidates[0]
-                    
-                    # Fill defaults if missing
-                    result.setdefault('principal', numbers[0] if numbers else 10000)
-                    result.setdefault('rate', 5.0)
-                    result.setdefault('time', 1.0)
-            
-            # Default: use first two numbers as a and b
-            if not result:
-                result['a'] = numbers[0] if len(numbers) > 0 else 0
-                result['b'] = numbers[1] if len(numbers) > 1 else 1
-        
-        elif len(numbers) == 1:
-            # Single number operations
-            result['a'] = numbers[0]
-            result['b'] = 1  # Default multiplier
-        
-        else:
-            # No numbers found - use defaults
-            result['a'] = 0
-            result['b'] = 1
-        
-        return result
-    
-    @staticmethod
-    def extract_text_content(data: Any) -> str:
-        """Extract readable text content from various data formats"""
-        if isinstance(data, str):
-            return data
-        elif isinstance(data, dict):
-            if "summary" in data:
-                return data["summary"]
-            elif "content" in data:
-                return str(data["content"])
-            elif "text" in data:
-                return data["text"]
-            else:
-                # Join all string values
-                text_parts = []
-                for value in data.values():
-                    if isinstance(value, str):
-                        text_parts.append(value)
-                    elif isinstance(value, list):
-                        for item in value:
-                            if isinstance(item, str):
-                                text_parts.append(item)
-                return " ".join(text_parts)
-        elif isinstance(data, list):
-            return " ".join(str(item) for item in data)
-        else:
-            return str(data)
-
-class SystemAgent:
-    """Built-in system agent for handling system queries"""
-    
-    def __init__(self, registry_ref, mcp_client_ref):
-        self.registry = registry_ref
-        self.mcp_client = mcp_client_ref
-    
-    async def execute_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute system tools"""
+    async def execute_dag(self, dag: DAG, context: ExecutionContext) -> List[StepResult]:
+        """Execute DAG with intelligent parallel and sequential scheduling"""
         try:
-            if tool_name == "list_tools":
-                return await self._list_all_tools(params)
-            elif tool_name == "list_agents":
-                return await self._list_all_agents(params)
-            elif tool_name == "list_workflows":
-                return await self._list_all_workflows(params)
-            elif tool_name == "system_status":
-                return await self._get_system_status(params)
-            elif tool_name == "help":
-                return await self._show_help(params)
-            elif tool_name == "extract_calculation_values":
-                return await self._extract_calculation_values(params)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Unknown system tool: {tool_name}"
-                }
-        except Exception as e:
-            logger.error(f"System tool {tool_name} failed: {e}")
-            return {
-                "success": False,
-                "error": f"System tool failed: {str(e)}"
-            }
-    
-    async def _extract_calculation_values(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract calculation values from previous results"""
-        try:
-            data = params.get("data", {})
-            context = params.get("context", "")
-            operation = params.get("operation", "multiply")
+            execution_id = context.trace_id
+            start_time = time.time()
             
-            values = DataExtractor.find_calculation_values(data, context)
-            
-            return {
-                "success": True,
-                "values": values,
-                "operation": operation,
-                "context": context
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Value extraction failed: {str(e)}"
-            }
-    
-    async def _list_all_tools(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """List all available tools across all agents"""
-        try:
-            include_details = params.get("include_details", False)
-            agents = self.registry.list_agents()
-            
-            all_tools = []
-            total_tools = 0
-            
-            for agent in agents:
-                if not agent.enabled:
-                    continue
-                    
-                agent_tools = {
-                    "agent_name": agent.name,
-                    "agent_description": agent.description,
-                    "endpoint": agent.endpoint,
-                    "tools": []
-                }
-                
-                for tool in agent.tools:
-                    tool_info = {
-                        "name": tool.name,
-                        "description": tool.description
-                    }
-                    
-                    if include_details:
-                        tool_info["params_schema"] = tool.params_schema
-                        tool_info["returns_schema"] = tool.returns_schema
-                    
-                    agent_tools["tools"].append(tool_info)
-                    total_tools += 1
-                
-                all_tools.append(agent_tools)
-            
-            # Add system tools
-            system_tools = {
-                "agent_name": "system",
-                "agent_description": "Built-in system agent for framework management",
-                "endpoint": "internal://system",
-                "tools": [
-                    {"name": "list_tools", "description": "List all available tools"},
-                    {"name": "list_agents", "description": "List all available agents"},
-                    {"name": "list_workflows", "description": "List all available workflows"},
-                    {"name": "system_status", "description": "Get system health status"},
-                    {"name": "help", "description": "Show help and capabilities"},
-                    {"name": "extract_calculation_values", "description": "Extract calculation values from data"}
-                ]
-            }
-            all_tools.append(system_tools)
-            total_tools += len(system_tools["tools"])
-            
-            result = {
-                "total_agents": len(all_tools),
-                "total_tools": total_tools,
-                "agents_and_tools": all_tools,
-                "summary": f"Found {total_tools} tools across {len(all_tools)} agents"
+            # Initialize execution tracking
+            self.active_executions[execution_id] = {
+                "context": context,
+                "start_time": start_time,
+                "status": ExecutionStatus.RUNNING,
+                "completed_nodes": set(),
+                "running_nodes": set(),
+                "failed_nodes": set(),
+                "results": {},
+                "node_futures": {}
             }
             
-            return {"success": True, "data": result}
+            logger.info(f"Starting DAG execution: {execution_id} with {len(dag.nodes)} nodes")
+            
+            # Validate DAG structure
+            validation_result = self._validate_dag_structure(dag)
+            if not validation_result["valid"]:
+                return [self._create_error_result("dag_validation", "orchestrator", "validate", 
+                                                execution_id, validation_result["error"])]
+            
+            # Build execution plan with dependency analysis
+            execution_plan = self._build_execution_plan(dag)
+            logger.debug(f"Execution plan: {execution_plan}")
+            
+            # Execute nodes in planned order with parallel optimization
+            results = await self._execute_plan(dag, execution_plan, context)
+            
+            # Update execution tracking
+            execution_time = time.time() - start_time
+            self._update_execution_stats(results, execution_time)
+            
+            # Cleanup
+            if execution_id in self.active_executions:
+                self.active_executions[execution_id]["status"] = ExecutionStatus.SUCCESS
+                self.active_executions[execution_id]["end_time"] = time.time()
+            
+            logger.info(f"DAG execution completed: {execution_id} in {execution_time:.2f}s")
+            return results
             
         except Exception as e:
-            logger.error(f"Failed to list tools: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"DAG execution failed: {e}")
+            if execution_id in self.active_executions:
+                self.active_executions[execution_id]["status"] = ExecutionStatus.FAILED
+            
+            return [self._create_error_result("orchestrator", "orchestrator", "execute", 
+                                            context.trace_id, str(e))]
     
-    async def _list_all_agents(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """List all available agents"""
+    def _validate_dag_structure(self, dag: DAG) -> Dict[str, Any]:
+        """Validate DAG structure and dependencies"""
         try:
-            include_health = params.get("include_health", False)
-            agents = self.registry.list_agents()
+            if not dag.nodes:
+                return {"valid": False, "error": "DAG must contain at least one node"}
             
-            agent_list = []
+            # Check for duplicate node IDs
+            node_ids = [node.id for node in dag.nodes]
+            if len(node_ids) != len(set(node_ids)):
+                return {"valid": False, "error": "Duplicate node IDs found in DAG"}
             
-            for agent in agents:
-                agent_info = {
-                    "name": agent.name,
-                    "description": agent.description,
-                    "endpoint": agent.endpoint,
-                    "enabled": agent.enabled,
-                    "tool_count": len(agent.tools),
-                    "tools": [tool.name for tool in agent.tools]
-                }
-                
-                if include_health:
-                    try:
-                        health_status = await self.mcp_client.test_agent_connection(agent)
-                        agent_info["health_status"] = "healthy" if health_status else "unhealthy"
-                    except Exception as e:
-                        agent_info["health_status"] = "error"
-                        agent_info["health_error"] = str(e)
-                
-                agent_list.append(agent_info)
+            # Validate dependencies exist
+            node_id_set = set(node_ids)
+            for node in dag.nodes:
+                for dep in node.depends_on:
+                    if dep not in node_id_set:
+                        return {"valid": False, "error": f"Node '{node.id}' depends on non-existent node '{dep}'"}
             
-            # Add system agent
-            system_agent_info = {
-                "name": "system",
-                "description": "Built-in system agent",
-                "endpoint": "internal://system",
-                "enabled": True,
-                "tool_count": 6,
-                "tools": ["list_tools", "list_agents", "list_workflows", "system_status", "help", "extract_calculation_values"],
-                "health_status": "healthy"
-            }
-            agent_list.append(system_agent_info)
+            # Check for cycles using DFS
+            if self._has_cycles(dag):
+                return {"valid": False, "error": "DAG contains cycles"}
             
-            result = {
-                "total_agents": len(agent_list),
-                "enabled_agents": len([a for a in agent_list if a.get("enabled", False)]),
-                "agents": agent_list
-            }
-            
-            return {"success": True, "data": result}
-            
-        except Exception as e:
-            logger.error(f"Failed to list agents: {e}")
-            return {"success": False, "error": str(e)}
-    
-    async def _list_all_workflows(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """List all available workflows"""
-        try:
-            workflows = self.registry.list_workflows()
-            
-            workflow_list = []
-            for workflow in workflows:
-                workflow_info = {
-                    "id": workflow.id,
-                    "name": workflow.name,
-                    "description": workflow.description,
-                    "intent": workflow.intent,
-                    "node_count": len(workflow.plan.nodes),
-                    "metadata": workflow.metadata
-                }
-                workflow_list.append(workflow_info)
-            
-            result = {
-                "total_workflows": len(workflow_list),
-                "workflows": workflow_list
-            }
-            
-            return {"success": True, "data": result}
-            
-        except Exception as e:
-            logger.error(f"Failed to list workflows: {e}")
-            return {"success": False, "error": str(e)}
-    
-    async def _get_system_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Get system health and status"""
-        try:
-            agents = self.registry.list_agents()
-            workflows = self.registry.list_workflows()
-            
-            # Quick health check of agents
-            healthy_agents = 0
-            unhealthy_agents = 0
-            
-            for agent in agents:
-                if not agent.enabled:
-                    continue
-                try:
-                    health = await self.mcp_client.test_agent_connection(agent)
-                    if health:
-                        healthy_agents += 1
-                    else:
-                        unhealthy_agents += 1
-                except:
-                    unhealthy_agents += 1
-            
-            system_status = {
-                "status": "operational" if healthy_agents > 0 else "degraded",
-                "timestamp": time.time(),
-                "agents": {
-                    "total": len(agents),
-                    "enabled": len([a for a in agents if a.enabled]),
-                    "healthy": healthy_agents,
-                    "unhealthy": unhealthy_agents
-                },
-                "workflows": {
-                    "total": len(workflows),
-                    "available": len([w for w in workflows if w.intent])
-                },
-                "framework_version": "1.0.0"
-            }
-            
-            return {"success": True, "data": system_status}
-            
-        except Exception as e:
-            logger.error(f"Failed to get system status: {e}")
-            return {"success": False, "error": str(e)}
-    
-    async def _show_help(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Show help and capabilities"""
-        try:
-            query = params.get("query", "")
-            
-            help_content = {
-                "framework_name": "Agentic Framework",
-                "version": "1.0.0",
-                "description": "Multi-agent workflow orchestration system with MCP protocol support",
-                "capabilities": [
-                    "Market research and competitive analysis",
-                    "Web search and information retrieval", 
-                    "Data analysis and summarization",
-                    "Mathematical calculations and statistics",
-                    "Natural language processing",
-                    "Data tabulation and formatting"
-                ],
-                "available_intents": [
-                    "market_research - Perform comprehensive market analysis",
-                    "web_search - Search for information online",
-                    "data_analysis - Analyze and process data",
-                    "calculation - Perform mathematical operations",
-                    "system_query - Get information about the system"
-                ],
-                "example_queries": [
-                    "Do market research on electric vehicles",
-                    "Search for Python best practices",
-                    "Calculate compound interest for $10000 at 7% for 5 years",
-                    "Analyze this data and create a summary",
-                    "List available tools",
-                    "What agents are available?"
-                ],
-                "system_commands": [
-                    "list tools - Show all available tools",
-                    "list agents - Show all available agents",
-                    "list workflows - Show all available workflows",
-                    "system status - Check system health",
-                    "help - Show this help message"
-                ]
-            }
-            
-            if query:
-                help_content["your_query"] = query
-                help_content["suggestion"] = "Try asking me to perform market research, search for information, or analyze data!"
-            
-            return {"success": True, "data": help_content}
-            
-        except Exception as e:
-            logger.error(f"Failed to show help: {e}")
-            return {"success": False, "error": str(e)}
-
-class Orchestrator:
-    def __init__(self):
-        self.mcp_client = MCPClientManager()
-        self.system_agent = SystemAgent(registry, self.mcp_client)
-        self.active_executions: Dict[str, Any] = {}
-        self.max_execution_time = 60  # Reduced to 1 minute for faster feedback
-        self.max_node_time = 15  # Reduced to 15 seconds per node
-        self.data_extractor = DataExtractor()
-    
-    async def execute_dag(self, dag: DAG, trace_id: Optional[str] = None) -> List[StepResult]:
-        """Execute DAG with improved error handling and debugging"""
-        if not trace_id:
-            trace_id = str(uuid.uuid4())
-        
-        logger.info(f"Starting DAG execution with trace_id: {trace_id}")
-        logger.info(f"DAG contains {len(dag.nodes)} nodes: {[n.id for n in dag.nodes]}")
-        
-        start_time = time.time()
-        
-        # Validate DAG first
-        validation_errors = self._validate_dag(dag)
-        if validation_errors:
-            logger.error(f"DAG validation failed: {validation_errors}")
-            return [StepResult(
-                node_id="validation",
-                success=False,
-                error=f"DAG validation failed: {', '.join(validation_errors)}",
-                started_at=start_time,
-                finished_at=time.time(),
-                trace_id=trace_id,
-                agent="system",
-                tool="validate"
-            )]
-        
-        # Check agent availability (skip for system agents)
-        await self._check_agent_availability(dag)
-        
-        # Build dependency graph
-        dependency_graph = self._build_dependency_graph(dag.nodes)
-        parallel_groups = self._group_parallel_nodes(dag.nodes)
-        
-        logger.info(f"Dependency graph: {dependency_graph}")
-        logger.info(f"Parallel groups: {list(parallel_groups.keys())}")
-        
-        # Track execution state
-        completed_nodes: Set[str] = set()
-        completed_groups: Set[str] = set()
-        results: Dict[str, StepResult] = {}
-        all_results: List[StepResult] = []
-        
-        # Store original query context for parameter resolution
-        query_context = dag.metadata.get("query", "")
-        
-        # Execute nodes in topological order
-        ready_queue = deque()
-        
-        # Find initial ready nodes (no dependencies)
-        for node in dag.nodes:
-            if not node.depends_on:
-                ready_queue.append(node)
-                logger.info(f"Node {node.id} is ready (no dependencies)")
-        
-        execution_round = 0
-        while ready_queue:
-            execution_round += 1
-            logger.info(f"Starting execution round {execution_round}")
-            
-            # Check overall execution timeout
-            elapsed_time = time.time() - start_time
-            if elapsed_time > self.max_execution_time:
-                logger.error(f"DAG execution timed out after {elapsed_time:.2f} seconds")
-                break
-            
-            # Group ready nodes by parallel group
-            current_batch = []
-            processed_groups = set()
-            
-            while ready_queue:
-                node = ready_queue.popleft()
-                
-                # Skip if parallel group already processed in this batch
-                if node.parallel_group and node.parallel_group in processed_groups:
-                    logger.debug(f"Skipping {node.id} - parallel group {node.parallel_group} already in batch")
-                    continue
-                
+            # Validate parallel groups
+            parallel_groups = defaultdict(list)
+            for node in dag.nodes:
                 if node.parallel_group:
-                    # Add all nodes in parallel group
-                    group_nodes = parallel_groups.get(node.parallel_group, [node])
-                    current_batch.extend(group_nodes)
-                    processed_groups.add(node.parallel_group)
-                    logger.info(f"Added parallel group {node.parallel_group} with {len(group_nodes)} nodes")
+                    parallel_groups[node.parallel_group].append(node)
+            
+            # Ensure nodes in parallel groups don't depend on each other
+            for group_name, group_nodes in parallel_groups.items():
+                group_ids = {node.id for node in group_nodes}
+                for node in group_nodes:
+                    if any(dep in group_ids for dep in node.depends_on):
+                        return {"valid": False, "error": f"Circular dependency in parallel group '{group_name}'"}
+            
+            return {"valid": True}
+            
+        except Exception as e:
+            return {"valid": False, "error": f"DAG validation failed: {str(e)}"}
+    
+    def _has_cycles(self, dag: DAG) -> bool:
+        """Check for cycles in DAG using DFS"""
+        try:
+            # Build adjacency list
+            graph = defaultdict(list)
+            for node in dag.nodes:
+                for dep in node.depends_on:
+                    graph[dep].append(node.id)
+            
+            # DFS cycle detection
+            WHITE, GRAY, BLACK = 0, 1, 2
+            colors = {node.id: WHITE for node in dag.nodes}
+            
+            def dfs(node_id: str) -> bool:
+                if colors[node_id] == GRAY:
+                    return True  # Back edge found, cycle detected
+                if colors[node_id] == BLACK:
+                    return False  # Already processed
+                
+                colors[node_id] = GRAY
+                for neighbor in graph[node_id]:
+                    if dfs(neighbor):
+                        return True
+                colors[node_id] = BLACK
+                return False
+            
+            for node in dag.nodes:
+                if colors[node.id] == WHITE:
+                    if dfs(node.id):
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Cycle detection failed: {e}")
+            return True  # Assume cycles exist if detection fails
+    
+    def _build_execution_plan(self, dag: DAG) -> Dict[str, Any]:
+        """Build intelligent execution plan with parallel optimization"""
+        try:
+            # Build dependency graph
+            dependencies = {node.id: set(node.depends_on) for node in dag.nodes}
+            dependents = defaultdict(set)
+            for node in dag.nodes:
+                for dep in node.depends_on:
+                    dependents[dep].add(node.id)
+            
+            # Group nodes by parallel groups
+            parallel_groups = defaultdict(list)
+            standalone_nodes = []
+            
+            for node in dag.nodes:
+                if node.parallel_group:
+                    parallel_groups[node.parallel_group].append(node)
                 else:
-                    current_batch.append(node)
-                    logger.info(f"Added single node {node.id}")
+                    standalone_nodes.append(node)
             
-            # Execute current batch
-            if current_batch:
-                logger.info(f"Executing batch of {len(current_batch)} nodes: {[n.id for n in current_batch]}")
-                batch_results = await self._execute_batch_with_monitoring(current_batch, results, trace_id, query_context)
-                
-                for result in batch_results:
-                    if isinstance(result, Exception):
-                        logger.error(f"Batch execution exception: {result}")
-                        continue
-                    
-                    results[result.node_id] = result
-                    all_results.append(result)
-                    
-                    if result.success:
-                        completed_nodes.add(result.node_id)
-                        logger.info(f"Node {result.node_id} completed successfully")
-                        
-                        # Mark parallel group as completed if all nodes in group are done
-                        node = next((n for n in dag.nodes if n.id == result.node_id), None)
-                        if node and node.parallel_group:
-                            group_nodes = parallel_groups.get(node.parallel_group, [])
-                            if all(gn.id in completed_nodes for gn in group_nodes):
-                                completed_groups.add(node.parallel_group)
-                                logger.info(f"Parallel group {node.parallel_group} completed")
-                    else:
-                        logger.error(f"Node {result.node_id} failed: {result.error}")
-                
-                # Find next ready nodes
-                newly_ready = []
-                for node in dag.nodes:
-                    if node.id not in completed_nodes and node not in ready_queue and node not in newly_ready:
-                        dependencies_met = True
-                        
-                        for dep in node.depends_on:
-                            if dep in completed_groups or dep in completed_nodes:
-                                continue
-                            else:
-                                dependencies_met = False
-                                break
-                        
-                        if dependencies_met:
-                            newly_ready.append(node)
-                            logger.info(f"Node {node.id} is now ready (dependencies met)")
-                
-                ready_queue.extend(newly_ready)
+            # Calculate execution levels (topological sort with parallel awareness)
+            execution_levels = []
+            remaining_nodes = {node.id: node for node in dag.nodes}
+            node_dependencies = dependencies.copy()
             
-            # Safety check to prevent infinite loops
-            if execution_round > len(dag.nodes) * 2:
-                logger.error(f"Execution round limit exceeded ({execution_round}), stopping")
-                break
-        
-        execution_time = time.time() - start_time
-        successful_count = len([r for r in all_results if r.success])
-        logger.info(f"DAG execution completed in {execution_time:.2f}s with {len(all_results)} steps ({successful_count} successful)")
-        
-        return all_results
-    
-    def _resolve_params(self, params: Dict[str, Any], results: Dict[str, StepResult], query_context: str = "") -> Dict[str, Any]:
-        """Enhanced parameter resolution with smart data extraction"""
-        resolved = {}
-        
-        for key, value in params.items():
-            if isinstance(value, str) and "{{" in value and "}}" in value:
-                # Enhanced template resolution
-                resolved_value = value
+            while remaining_nodes:
+                # Find nodes with no remaining dependencies
+                ready_nodes = []
+                ready_groups = defaultdict(list)
                 
-                # Handle results.group_name.combined for parallel groups
-                if "{{results." in resolved_value and ".combined}}" in resolved_value:
-                    import re
-                    match = re.search(r'\{\{results\.(\w+)\.combined\}\}', resolved_value)
-                    if match:
-                        group_name = match.group(1)
-                        combined_data = self._combine_group_results(group_name, results)
-                        resolved_value = resolved_value.replace(f"{{{{results.{group_name}.combined}}}}", combined_data)
-                
-                # Handle smart parameter extraction
-                elif "{{extract:" in resolved_value:
-                    # Smart extraction patterns like {{extract:numbers_from:step_id}}
-                    import re
-                    extract_match = re.search(r'\{\{extract:(\w+)_from:(\w+)\}\}', resolved_value)
-                    if extract_match:
-                        extraction_type = extract_match.group(1)
-                        source_step = extract_match.group(2)
-                        
-                        if source_step in results and results[source_step].success:
-                            source_data = results[source_step].data
-                            
-                            if extraction_type == "numbers":
-                                numbers = self.data_extractor.extract_numbers(source_data)
-                                if numbers:
-                                    resolved_value = str(numbers[0])  # Use first number found
-                            elif extraction_type == "calculation_values":
-                                calc_values = self.data_extractor.find_calculation_values(source_data, query_context)
-                                if key in calc_values:
-                                    resolved_value = str(calc_values[key])
-                                elif key == 'a' and 'quantity' in calc_values:
-                                    resolved_value = str(calc_values['quantity'])
-                                elif key == 'b' and 'price' in calc_values:
-                                    resolved_value = str(calc_values['price'])
-                
-                # Handle individual result references with smart extraction
-                for result_id, result in results.items():
-                    if result.success and result.data:
-                        # Direct data reference
-                        template = f"{{{{results.{result_id}.data}}}}"
-                        if template in resolved_value:
-                            data_str = str(result.data) if not isinstance(result.data, str) else result.data
-                            resolved_value = resolved_value.replace(template, data_str)
-                        
-                        # Smart parameter extraction based on parameter name
-                        smart_template = f"{{{{results.{result_id}.{key}}}}}"
-                        if smart_template in resolved_value:
-                            # Extract specific value based on parameter name
-                            if key in ['a', 'b', 'quantity', 'price', 'principal', 'rate', 'time']:
-                                calc_values = self.data_extractor.find_calculation_values(result.data, query_context)
-                                if key in calc_values:
-                                    resolved_value = str(calc_values[key])
-                                elif key == 'a' and 'quantity' in calc_values:
-                                    resolved_value = str(calc_values['quantity'])
-                                elif key == 'b' and 'price' in calc_values:
-                                    resolved_value = str(calc_values['price'])
-                                else:
-                                    # Fallback to first number
-                                    numbers = self.data_extractor.extract_numbers(result.data)
-                                    if numbers:
-                                        resolved_value = str(numbers[0] if key == 'a' else numbers[1] if len(numbers) > 1 else 1)
-                
-                # Convert to appropriate type
-                try:
-                    if resolved_value != value:  # If template was resolved
-                        # Try to convert to number if it looks like one
-                        if resolved_value.replace('.', '').replace('-', '').isdigit():
-                            resolved[key] = float(resolved_value) if '.' in resolved_value else int(resolved_value)
+                for node_id, node in remaining_nodes.items():
+                    if not node_dependencies[node_id]:
+                        if node.parallel_group:
+                            ready_groups[node.parallel_group].append(node)
                         else:
-                            resolved[key] = resolved_value
-                    else:
-                        resolved[key] = value
-                except (ValueError, TypeError):
-                    resolved[key] = resolved_value
-            else:
-                resolved[key] = value
-        
-        # Additional smart parameter resolution for calculation tools
-        if not any("{{" in str(v) for v in params.values()):
-            # If no templates were used, try smart extraction for calculator operations
-            if all(key in ['a', 'b'] for key in params.keys()):
-                # This looks like a calculator operation, try to resolve from previous results
-                for result_id, result in results.items():
-                    if result.success and result.data:
-                        calc_values = self.data_extractor.find_calculation_values(result.data, query_context)
-                        for param_key in ['a', 'b']:
-                            if param_key in params and params[param_key] is None:
-                                if param_key in calc_values:
-                                    resolved[param_key] = calc_values[param_key]
-                                elif param_key == 'a' and 'quantity' in calc_values:
-                                    resolved[param_key] = calc_values['quantity']
-                                elif param_key == 'b' and 'price' in calc_values:
-                                    resolved[param_key] = calc_values['price']
-        
-        return resolved
-    
-    async def _execute_batch_with_monitoring(self, nodes: List[Node], previous_results: Dict[str, StepResult], trace_id: str, query_context: str = "") -> List[StepResult]:
-        """Execute a batch of nodes with detailed monitoring"""
-        logger.info(f"Starting batch execution with {len(nodes)} nodes")
-        
-        tasks = []
-        for node in nodes:
-            task = asyncio.create_task(
-                self._execute_node_with_monitoring(node, previous_results, trace_id, query_context),
-                name=f"node_{node.id}"
-            )
-            tasks.append(task)
-        
-        # Wait for all tasks with timeout
-        try:
-            results = await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=self.max_node_time * 2  # Give extra time for batch
-            )
-            logger.info(f"Batch execution completed with {len(results)} results")
-            return results
-        except asyncio.TimeoutError:
-            logger.error(f"Batch execution timed out")
-            # Cancel remaining tasks
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
+                            ready_nodes.append(node)
+                
+                if not ready_nodes and not ready_groups:
+                    # This should not happen if DAG is valid
+                    logger.error("No ready nodes found, possible circular dependency")
+                    break
+                
+                # Create execution level
+                level = {
+                    "standalone_nodes": ready_nodes,
+                    "parallel_groups": dict(ready_groups),
+                    "estimated_time": self._estimate_level_execution_time(ready_nodes, ready_groups)
+                }
+                execution_levels.append(level)
+                
+                # Remove processed nodes and update dependencies
+                processed_nodes = set()
+                for node in ready_nodes:
+                    processed_nodes.add(node.id)
+                for group_nodes in ready_groups.values():
+                    for node in group_nodes:
+                        processed_nodes.add(node.id)
+                
+                for node_id in processed_nodes:
+                    remaining_nodes.pop(node_id)
+                    for dependent in dependents[node_id]:
+                        if dependent in node_dependencies:
+                            node_dependencies[dependent].discard(node_id)
             
-            # Return partial results
-            results = []
-            for task in tasks:
-                if task.done() and not task.cancelled():
-                    try:
-                        results.append(task.result())
-                    except Exception as e:
-                        results.append(e)
-            return results
+            return {
+                "execution_levels": execution_levels,
+                "total_levels": len(execution_levels),
+                "max_parallelism": max(
+                    len(level["standalone_nodes"]) + sum(len(group) for group in level["parallel_groups"].values())
+                    for level in execution_levels
+                ),
+                "estimated_total_time": sum(level["estimated_time"] for level in execution_levels)
+            }
+            
+        except Exception as e:
+            logger.error(f"Execution plan building failed: {e}")
+            return {
+                "execution_levels": [],
+                "total_levels": 0,
+                "max_parallelism": 0,
+                "estimated_total_time": 0,
+                "error": str(e)
+            }
     
-    async def _execute_node_with_monitoring(self, node: Node, previous_results: Dict[str, StepResult], trace_id: str, query_context: str = "") -> StepResult:
-        """Execute a single node with detailed monitoring and enhanced parameter resolution"""
-        start_time = time.time()
-        logger.info(f"Starting execution of node {node.id} ({node.agent}.{node.tool})")
-        
+    def _estimate_level_execution_time(self, standalone_nodes: List[Node], 
+                                     parallel_groups: Dict[str, List[Node]]) -> float:
+        """Estimate execution time for a level based on historical performance"""
         try:
-            # Handle system agent
-            if node.agent == "system":
-                # Resolve parameters with template substitution
-                resolved_params = self._resolve_params(node.params, previous_results, query_context)
-                logger.debug(f"Node {node.id} resolved params: {resolved_params}")
+            max_time = 0.0
+            
+            # Estimate standalone nodes (run in parallel)
+            standalone_times = []
+            for node in standalone_nodes:
+                node_key = f"{node.agent}.{node.tool}"
+                if node_key in self.node_performance:
+                    avg_time = sum(self.node_performance[node_key]) / len(self.node_performance[node_key])
+                    standalone_times.append(avg_time)
+                else:
+                    standalone_times.append(30.0)  # Default estimate
+            
+            if standalone_times:
+                max_time = max(max_time, max(standalone_times))
+            
+            # Estimate parallel groups
+            for group_name, group_nodes in parallel_groups.items():
+                group_times = []
+                for node in group_nodes:
+                    node_key = f"{node.agent}.{node.tool}"
+                    if node_key in self.node_performance:
+                        avg_time = sum(self.node_performance[node_key]) / len(self.node_performance[node_key])
+                        group_times.append(avg_time)
+                    else:
+                        group_times.append(30.0)  # Default estimate
                 
-                # Execute system tool
-                result = await self.system_agent.execute_tool(node.tool, resolved_params)
+                if group_times:
+                    # Parallel group time is the maximum time within the group
+                    max_time = max(max_time, max(group_times))
+            
+            return max_time
+            
+        except Exception as e:
+            logger.warning(f"Time estimation failed: {e}")
+            return 60.0  # Default fallback
+    
+    async def _execute_plan(self, dag: DAG, execution_plan: Dict[str, Any], 
+                          context: ExecutionContext) -> List[StepResult]:
+        """Execute the planned DAG with parallel optimization"""
+        try:
+            all_results = []
+            execution_context = self.active_executions[context.trace_id]
+            
+            for level_idx, level in enumerate(execution_plan["execution_levels"]):
+                logger.info(f"Executing level {level_idx + 1}/{execution_plan['total_levels']}")
                 
+                # Collect all nodes for this level
+                level_nodes = []
+                level_nodes.extend(level["standalone_nodes"])
+                for group_nodes in level["parallel_groups"].values():
+                    level_nodes.extend(group_nodes)
+                
+                if not level_nodes:
+                    continue
+                
+                # Execute level with controlled parallelism
+                level_results = await self._execute_level(level_nodes, execution_context, context)
+                all_results.extend(level_results)
+                
+                # Check for failures and handle according to continue_on_failure
+                failed_results = [r for r in level_results if not r.success]
+                if failed_results:
+                    # Check if any failed nodes should stop execution
+                    critical_failures = [r for r in failed_results 
+                                       if not self._find_node_by_id(dag, r.node_id).continue_on_failure]
+                    
+                    if critical_failures:
+                        logger.error(f"Critical failures detected, stopping execution: {[r.node_id for r in critical_failures]}")
+                        break
+            
+            return all_results
+            
+        except Exception as e:
+            logger.error(f"Plan execution failed: {e}")
+            return [self._create_error_result("plan_execution", "orchestrator", "execute", 
+                                            context.trace_id, str(e))]
+    
+    async def _execute_level(self, nodes: List[Node], execution_context: Dict[str, Any], 
+                           context: ExecutionContext) -> List[StepResult]:
+        """Execute a level of nodes with controlled parallelism"""
+        try:
+            # Limit parallelism to avoid overwhelming the system
+            semaphore = asyncio.Semaphore(min(self.max_parallel_nodes, len(nodes)))
+            
+            # Create execution tasks
+            tasks = []
+            for node in nodes:
+                task = asyncio.create_task(
+                    self._execute_node_with_semaphore(node, execution_context, context, semaphore)
+                )
+                tasks.append(task)
+                execution_context["node_futures"][node.id] = task
+            
+            # Wait for all tasks to complete
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results and handle exceptions
+            level_results = []
+            for i, result in enumerate(results):
+                node = nodes[i]
+                if isinstance(result, Exception):
+                    logger.error(f"Node {node.id} execution failed with exception: {result}")
+                    step_result = self._create_error_result(node.id, node.agent, node.tool, 
+                                                          context.trace_id, str(result))
+                else:
+                    step_result = result
+                
+                level_results.append(step_result)
+                execution_context["results"][node.id] = step_result
+                
+                # Update tracking
+                if step_result.success:
+                    execution_context["completed_nodes"].add(node.id)
+                else:
+                    execution_context["failed_nodes"].add(node.id)
+                
+                execution_context["running_nodes"].discard(node.id)
+            
+            return level_results
+            
+        except Exception as e:
+            logger.error(f"Level execution failed: {e}")
+            return [self._create_error_result("level_execution", "orchestrator", "execute", 
+                                            context.trace_id, str(e))]
+    
+    async def _execute_node_with_semaphore(self, node: Node, execution_context: Dict[str, Any], 
+                                         context: ExecutionContext, semaphore: asyncio.Semaphore) -> StepResult:
+        """Execute a single node with semaphore control"""
+        async with semaphore:
+            execution_context["running_nodes"].add(node.id)
+            return await self._execute_single_node(node, execution_context, context)
+    
+    async def _execute_single_node(self, node: Node, execution_context: Dict[str, Any], 
+                                 context: ExecutionContext) -> StepResult:
+        """Execute a single node with comprehensive error handling and retries"""
+        start_time = time.time()
+        last_error = None
+        
+        for attempt in range(node.retries + 1):
+            try:
+                if attempt > 0:
+                    logger.info(f"Retrying node {node.id}, attempt {attempt + 1}/{node.retries + 1}")
+                    await asyncio.sleep(node.retry_delay * attempt)  # Exponential backoff
+                
+                # Prepare parameters with result substitution
+                prepared_params = await self._prepare_node_parameters(node, execution_context["results"])
+                
+                # Set timeout
+                timeout = node.timeout_sec or context.timeout_sec or settings.mcp_default_timeout_sec
+                
+                # Execute the tool call
+                result_data = await asyncio.wait_for(
+                    self.mcp_client.call_tool(node.agent, node.tool, prepared_params),
+                    timeout=timeout
+                )
+                
+                # Record performance
                 execution_time = time.time() - start_time
-                logger.info(f"System node {node.id} completed in {execution_time:.2f}s, success: {result['success']}")
+                node_key = f"{node.agent}.{node.tool}"
+                self.node_performance[node_key].append(execution_time)
+                
+                # Keep only last 100 performance records per node
+                if len(self.node_performance[node_key]) > 100:
+                    self.node_performance[node_key] = self.node_performance[node_key][-100:]
                 
                 return StepResult(
                     node_id=node.id,
-                    success=result["success"],
-                    data=result.get("data"),
-                    error=result.get("error"),
+                    agent=node.agent,
+                    tool=node.tool,
+                    success=True,
+                    data=result_data,
                     started_at=start_time,
                     finished_at=time.time(),
-                    trace_id=trace_id,
-                    agent=node.agent,
-                    tool=node.tool
+                    execution_time=execution_time,
+                    trace_id=context.trace_id,
+                    retry_count=attempt,
+                    metadata={
+                        "parameters": prepared_params,
+                        "timeout_used": timeout,
+                        "parallel_group": node.parallel_group
+                    }
                 )
-            
-            # Handle regular MCP agents
-            agent = registry.get_agent(node.agent)
-            if not agent:
-                raise ValueError(f"Agent '{node.agent}' not found in registry")
-            
-            # Enhanced parameter resolution with query context
-            resolved_params = self._resolve_params(node.params, previous_results, query_context)
-            logger.debug(f"Node {node.id} resolved params: {resolved_params}")
-            
-            # Execute tool with node-specific timeout
-            node_timeout = min(node.timeout_sec or self.max_node_time, self.max_node_time)
-            logger.info(f"Executing {node.agent}.{node.tool} with timeout {node_timeout}s")
-            
-            result = await asyncio.wait_for(
-                self.mcp_client.call_tool(
-                    agent=agent,
-                    tool_name=node.tool,
-                    params=resolved_params,
-                    timeout=node_timeout
-                ),
-                timeout=node_timeout + 2  # Small buffer
-            )
-            
-            execution_time = time.time() - start_time
-            logger.info(f"Node {node.id} completed in {execution_time:.2f}s, success: {result['success']}")
-            
-            return StepResult(
-                node_id=node.id,
-                success=result["success"],
-                data=result.get("data"),
-                error=result.get("error"),
-                started_at=start_time,
-                finished_at=time.time(),
-                trace_id=trace_id,
-                agent=node.agent,
-                tool=node.tool
-            )
-            
-        except asyncio.TimeoutError:
-            execution_time = time.time() - start_time
-            error_msg = f"Node execution timed out after {execution_time:.2f} seconds"
-            logger.error(f"Node {node.id} timed out: {error_msg}")
-            return StepResult(
-                node_id=node.id,
-                success=False,
-                error=error_msg,
-                started_at=start_time,
-                finished_at=time.time(),
-                trace_id=trace_id,
-                agent=node.agent,
-                tool=node.tool
-            )
-        except Exception as e:
-            execution_time = time.time() - start_time
-            logger.error(f"Node execution failed for {node.id}: {e}")
-            return StepResult(
-                node_id=node.id,
-                success=False,
-                error=str(e),
-                started_at=start_time,
-                finished_at=time.time(),
-                trace_id=trace_id,
-                agent=node.agent,
-                tool=node.tool
-            )
-    
-    def _validate_dag(self, dag: DAG) -> List[str]:
-        """Validate DAG structure"""
-        errors = []
-        
-        if not dag.nodes:
-            errors.append("DAG has no nodes")
-            return errors
-        
-        node_ids = {node.id for node in dag.nodes}
-        
-        for node in dag.nodes:
-            # Check for invalid dependencies
-            for dep in node.depends_on:
-                if dep not in node_ids and dep not in [n.parallel_group for n in dag.nodes if n.parallel_group]:
-                    errors.append(f"Node {node.id} depends on non-existent node/group: {dep}")
-            
-            # Check agent exists (skip validation for system agent)
-            if node.agent != "system":
-                if not registry.get_agent(node.agent):
-                    errors.append(f"Node {node.id} references unknown agent: {node.agent}")
-        
-        return errors
-    
-    async def _check_agent_availability(self, dag: DAG):
-        """Check if required agents are available"""
-        required_agents = {node.agent for node in dag.nodes}
-        
-        for agent_name in required_agents:
-            if agent_name == "system":
-                logger.info(f"Agent {agent_name} availability: built-in (always available)")
-                continue
                 
-            agent = registry.get_agent(agent_name)
-            if agent:
-                is_available = await self.mcp_client.test_agent_connection(agent)
-                logger.info(f"Agent {agent_name} availability: {is_available}")
-            else:
-                logger.warning(f"Agent {agent_name} not found in registry")
-    
-    def _build_dependency_graph(self, nodes: List[Node]) -> Dict[str, List[str]]:
-        """Build dependency graph from nodes"""
-        graph = defaultdict(list)
-        for node in nodes:
-            for dep in node.depends_on:
-                graph[dep].append(node.id)
-        return dict(graph)
-    
-    def _group_parallel_nodes(self, nodes: List[Node]) -> Dict[str, List[Node]]:
-        """Group nodes by parallel group"""
-        groups = defaultdict(list)
-        for node in nodes:
-            if node.parallel_group:
-                groups[node.parallel_group].append(node)
-        return dict(groups)
-    
-    def _combine_group_results(self, group_name: str, results: Dict[str, StepResult]) -> str:
-        """Combine results from a parallel group"""
-        combined_text = []
+            except asyncio.TimeoutError:
+                last_error = f"Node execution timed out after {timeout}s"
+                logger.warning(f"Node {node.id} timed out on attempt {attempt + 1}")
+                
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"Node {node.id} failed on attempt {attempt + 1}: {e}")
         
-        for result in results.values():
-            if result.success and result.data:
-                if isinstance(result.data, dict):
-                    # Extract items from search results
-                    if "items" in result.data:
-                        for item in result.data["items"]:
-                            if isinstance(item, dict):
-                                title = item.get("title", "")
-                                snippet = item.get("snippet", "")
-                                combined_text.append(f"{title}: {snippet}")
-                            else:
-                                combined_text.append(str(item))
-                    else:
-                        combined_text.append(str(result.data))
+        # All retries exhausted
+        execution_time = time.time() - start_time
+        logger.error(f"Node {node.id} failed after {node.retries + 1} attempts: {last_error}")
+        
+        return StepResult(
+            node_id=node.id,
+            agent=node.agent,
+            tool=node.tool,
+            success=False,
+            error=last_error,
+            started_at=start_time,
+            finished_at=time.time(),
+            execution_time=execution_time,
+            trace_id=context.trace_id,
+            retry_count=node.retries,
+            metadata={
+                "timeout_used": node.timeout_sec or context.timeout_sec or settings.mcp_default_timeout_sec,
+                "parallel_group": node.parallel_group
+            }
+        )
+    
+    async def _prepare_node_parameters(self, node: Node, previous_results: Dict[str, StepResult]) -> Dict[str, Any]:
+        """Prepare node parameters with result substitution"""
+        try:
+            prepared_params = {}
+            
+            for key, value in node.params.items():
+                if isinstance(value, str):
+                    # Handle parameter substitution like {{results.node_id.data}}
+                    substituted_value = value
+                    
+                    # Simple pattern matching for result substitution
+                    import re
+                    pattern = r'\{\{results\.([^.]+)\.([^}]+)\}\}'
+                    matches = re.findall(pattern, value)
+                    
+                    for node_id, field_path in matches:
+                        if node_id in previous_results:
+                            result = previous_results[node_id]
+                            if result.success and result.data:
+                                # Navigate field path (e.g., data.summary.key_points)
+                                field_value = self._get_nested_field(result.data, field_path)
+                                if field_value is not None:
+                                    placeholder = f"{{{{results.{node_id}.{field_path}}}}}"
+                                    substituted_value = substituted_value.replace(placeholder, str(field_value))
+                    
+                    prepared_params[key] = substituted_value
                 else:
-                    combined_text.append(str(result.data))
-        
-        return " ".join(combined_text)
+                    prepared_params[key] = value
+            
+            return prepared_params
+            
+        except Exception as e:
+            logger.error(f"Parameter preparation failed: {e}")
+            return node.params.copy()  # Return original params as fallback
+    
+    def _get_nested_field(self, data: Any, field_path: str) -> Any:
+        """Get nested field value from data using dot notation"""
+        try:
+            current = data
+            parts = field_path.split('.')
+            
+            for part in parts:
+                if isinstance(current, dict):
+                    current = current.get(part)
+                elif isinstance(current, list) and part.isdigit():
+                    index = int(part)
+                    if 0 <= index < len(current):
+                        current = current[index]
+                    else:
+                        return None
+                else:
+                    return None
+                
+                if current is None:
+                    return None
+            
+            return current
+            
+        except Exception as e:
+            logger.debug(f"Field path navigation failed: {e}")
+            return None
+    
+    def _find_node_by_id(self, dag: DAG, node_id: str) -> Optional[Node]:
+        """Find node by ID in DAG"""
+        for node in dag.nodes:
+            if node.id == node_id:
+                return node
+        return None
+    
+    def _create_error_result(self, node_id: str, agent: str, tool: str, trace_id: str, error: str) -> StepResult:
+        """Create an error step result"""
+        current_time = time.time()
+        return StepResult(
+            node_id=node_id,
+            agent=agent,
+            tool=tool,
+            success=False,
+            error=error,
+            started_at=current_time,
+            finished_at=current_time,
+            execution_time=0.0,
+            trace_id=trace_id
+        )
+    
+    def _update_execution_stats(self, results: List[StepResult], execution_time: float):
+        """Update orchestrator execution statistics"""
+        try:
+            self.execution_stats["total_executions"] += 1
+            self.execution_stats["total_nodes_executed"] += len(results)
+            
+            successful_results = [r for r in results if r.success]
+            if len(successful_results) == len(results):
+                self.execution_stats["successful_executions"] += 1
+            else:
+                self.execution_stats["failed_executions"] += 1
+            
+            # Update average execution time
+            total_time = self.execution_stats["avg_execution_time"] * (self.execution_stats["total_executions"] - 1)
+            self.execution_stats["avg_execution_time"] = (total_time + execution_time) / self.execution_stats["total_executions"]
+            
+            # Store execution history (keep last 1000)
+            execution_record = {
+                "timestamp": datetime.now().isoformat(),
+                "execution_time": execution_time,
+                "total_nodes": len(results),
+                "successful_nodes": len(successful_results),
+                "failed_nodes": len(results) - len(successful_results)
+            }
+            
+            self.execution_history.append(execution_record)
+            if len(self.execution_history) > 1000:
+                self.execution_history = self.execution_history[-1000:]
+            
+        except Exception as e:
+            logger.error(f"Stats update failed: {e}")
+    
+    async def cancel_execution(self, trace_id: str) -> bool:
+        """Cancel an active execution"""
+        try:
+            if trace_id not in self.active_executions:
+                return False
+            
+            execution = self.active_executions[trace_id]
+            execution["status"] = ExecutionStatus.CANCELLED
+            
+            # Cancel running node futures
+            for node_id, future in execution["node_futures"].items():
+                if not future.done():
+                    future.cancel()
+                    logger.info(f"Cancelled node: {node_id}")
+            
+            logger.info(f"Execution cancelled: {trace_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Execution cancellation failed: {e}")
+            return False
+    
+    def get_execution_status(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        """Get current execution status"""
+        try:
+            if trace_id not in self.active_executions:
+                return None
+            
+            execution = self.active_executions[trace_id]
+            
+            return {
+                "trace_id": trace_id,
+                "status": execution["status"],
+                "start_time": execution["start_time"],
+                "end_time": execution.get("end_time"),
+                "completed_nodes": list(execution["completed_nodes"]),
+                "running_nodes": list(execution["running_nodes"]),
+                "failed_nodes": list(execution["failed_nodes"]),
+                "total_nodes": len(execution["context"].plan.nodes) if hasattr(execution["context"], "plan") else 0,
+                "progress_percentage": len(execution["completed_nodes"]) / max(1, len(execution["context"].plan.nodes) if hasattr(execution["context"], "plan") else 1) * 100
+            }
+            
+        except Exception as e:
+            logger.error(f"Status retrieval failed: {e}")
+            return None
+    
+    def get_orchestrator_stats(self) -> Dict[str, Any]:
+        """Get orchestrator performance statistics"""
+        try:
+            return {
+                "execution_stats": self.execution_stats.copy(),
+                "active_executions": len(self.active_executions),
+                "node_performance_summary": {
+                    node_key: {
+                        "count": len(times),
+                        "avg_time": sum(times) / len(times),
+                        "min_time": min(times),
+                        "max_time": max(times)
+                    }
+                    for node_key, times in self.node_performance.items()
+                    if times
+                },
+                "recent_executions": self.execution_history[-10:],  # Last 10 executions
+                "settings": {
+                    "max_parallel_nodes": self.max_parallel_nodes,
+                    "default_timeout": settings.mcp_default_timeout_sec
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Stats retrieval failed: {e}")
+            return {"error": str(e)}
+    
+    async def cleanup_completed_executions(self, max_age_hours: int = 24):
+        """Clean up old completed executions"""
+        try:
+            current_time = time.time()
+            cutoff_time = current_time - (max_age_hours * 3600)
+            
+            completed_executions = []
+            for trace_id, execution in self.active_executions.items():
+                if execution["status"] in [ExecutionStatus.SUCCESS, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED]:
+                    end_time = execution.get("end_time", current_time)
+                    if end_time < cutoff_time:
+                        completed_executions.append(trace_id)
+            
+            for trace_id in completed_executions:
+                del self.active_executions[trace_id]
+                logger.debug(f"Cleaned up execution: {trace_id}")
+            
+            logger.info(f"Cleaned up {len(completed_executions)} old executions")
+            
+        except Exception as e:
+            logger.error(f"Cleanup failed: {e}")
 
-orchestrator = Orchestrator()
+# Create global instance
+# Note: This will be initialized with MCP client manager in main application
+orchestrator: Optional[WorkflowOrchestrator] = None
+
+def initialize_orchestrator(mcp_client_manager: MCPClientManager) -> WorkflowOrchestrator:
+    """Initialize the global orchestrator instance"""
+    global orchestrator
+    orchestrator = WorkflowOrchestrator(mcp_client_manager)
+    return orchestrator
