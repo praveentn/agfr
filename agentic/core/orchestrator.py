@@ -2,6 +2,8 @@
 import asyncio
 import time
 import uuid
+import re
+import json
 from typing import Dict, Any, List, Set, Optional
 from collections import defaultdict, deque
 import logging
@@ -10,6 +12,153 @@ from .mcp_client import MCPClientManager
 from .registry import registry
 
 logger = logging.getLogger(__name__)
+
+class DataExtractor:
+    """Helper class to extract and transform data between workflow steps"""
+    
+    @staticmethod
+    def extract_numbers(data: Any) -> List[float]:
+        """Extract all numbers from various data formats"""
+        numbers = []
+        
+        if isinstance(data, (int, float)):
+            return [float(data)]
+        
+        if isinstance(data, str):
+            # Extract numbers from text using regex
+            number_patterns = [
+                r'\b\d+(?:,\d{3})*(?:\.\d+)?\b',  # Regular numbers with commas
+                r'\$\s*\d+(?:,\d{3})*(?:\.\d+)?\b',  # Currency
+                r'\d+(?:\.\d+)?\s*(?:dollars?|USD|\$)',  # Currency with text
+            ]
+            
+            for pattern in number_patterns:
+                matches = re.findall(pattern, data, re.IGNORECASE)
+                for match in matches:
+                    # Clean the match
+                    clean_num = re.sub(r'[^\d.]', '', match)
+                    if clean_num:
+                        try:
+                            numbers.append(float(clean_num))
+                        except ValueError:
+                            continue
+        
+        elif isinstance(data, dict):
+            # Extract from dictionary
+            if "numbers" in data:
+                numbers.extend(DataExtractor.extract_numbers(data["numbers"]))
+            elif "entities" in data and isinstance(data["entities"], dict):
+                # Extract from entity extraction results
+                entity_numbers = data["entities"].get("numbers", [])
+                for num_str in entity_numbers:
+                    numbers.extend(DataExtractor.extract_numbers(num_str))
+            else:
+                # Recursively search all values
+                for value in data.values():
+                    numbers.extend(DataExtractor.extract_numbers(value))
+        
+        elif isinstance(data, list):
+            for item in data:
+                numbers.extend(DataExtractor.extract_numbers(item))
+        
+        return numbers
+    
+    @staticmethod
+    def find_calculation_values(data: Any, query_context: str = "") -> Dict[str, float]:
+        """Find specific calculation values based on context"""
+        numbers = DataExtractor.extract_numbers(data)
+        
+        # Smart mapping based on query context and found numbers
+        context_lower = query_context.lower()
+        
+        result = {}
+        
+        if len(numbers) >= 2:
+            # For sales calculations: quantity × price
+            if any(word in context_lower for word in ['sales', 'revenue', 'total', 'earning', 'sold', 'price']):
+                # Try to identify quantity vs price
+                sorted_numbers = sorted(numbers, reverse=True)
+                
+                # Heuristics for sales calculations
+                if 'iphones' in context_lower or 'phones' in context_lower:
+                    # Likely: large number = quantity, smaller = price or vice versa
+                    if len(numbers) >= 2:
+                        # Look for quantity indicators
+                        quantity_candidates = [n for n in numbers if n >= 10 and n <= 10000]  # Reasonable phone quantities
+                        price_candidates = [n for n in numbers if n >= 50 and n <= 5000]     # Reasonable phone prices
+                        
+                        if quantity_candidates and price_candidates:
+                            result['quantity'] = quantity_candidates[0]
+                            result['price'] = price_candidates[-1]  # Often the last/highest price mentioned
+                        else:
+                            # Fallback to first two numbers
+                            result['a'] = numbers[0]
+                            result['b'] = numbers[1]
+            
+            # For compound interest: principal, rate, time
+            elif any(word in context_lower for word in ['interest', 'compound', 'investment', 'rate']):
+                if len(numbers) >= 3:
+                    # Typically: principal (large), rate (small %), time (years)
+                    principal_candidates = [n for n in numbers if n >= 1000]
+                    rate_candidates = [n for n in numbers if 0 < n <= 100]
+                    time_candidates = [n for n in numbers if 1 <= n <= 50]
+                    
+                    if principal_candidates:
+                        result['principal'] = principal_candidates[0]
+                    if rate_candidates:
+                        result['rate'] = rate_candidates[0]
+                    if time_candidates:
+                        result['time'] = time_candidates[0]
+                    
+                    # Fill defaults if missing
+                    result.setdefault('principal', numbers[0] if numbers else 10000)
+                    result.setdefault('rate', 5.0)
+                    result.setdefault('time', 1.0)
+            
+            # Default: use first two numbers as a and b
+            if not result:
+                result['a'] = numbers[0] if len(numbers) > 0 else 0
+                result['b'] = numbers[1] if len(numbers) > 1 else 1
+        
+        elif len(numbers) == 1:
+            # Single number operations
+            result['a'] = numbers[0]
+            result['b'] = 1  # Default multiplier
+        
+        else:
+            # No numbers found - use defaults
+            result['a'] = 0
+            result['b'] = 1
+        
+        return result
+    
+    @staticmethod
+    def extract_text_content(data: Any) -> str:
+        """Extract readable text content from various data formats"""
+        if isinstance(data, str):
+            return data
+        elif isinstance(data, dict):
+            if "summary" in data:
+                return data["summary"]
+            elif "content" in data:
+                return str(data["content"])
+            elif "text" in data:
+                return data["text"]
+            else:
+                # Join all string values
+                text_parts = []
+                for value in data.values():
+                    if isinstance(value, str):
+                        text_parts.append(value)
+                    elif isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, str):
+                                text_parts.append(item)
+                return " ".join(text_parts)
+        elif isinstance(data, list):
+            return " ".join(str(item) for item in data)
+        else:
+            return str(data)
 
 class SystemAgent:
     """Built-in system agent for handling system queries"""
@@ -31,6 +180,8 @@ class SystemAgent:
                 return await self._get_system_status(params)
             elif tool_name == "help":
                 return await self._show_help(params)
+            elif tool_name == "extract_calculation_values":
+                return await self._extract_calculation_values(params)
             else:
                 return {
                     "success": False,
@@ -41,6 +192,27 @@ class SystemAgent:
             return {
                 "success": False,
                 "error": f"System tool failed: {str(e)}"
+            }
+    
+    async def _extract_calculation_values(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract calculation values from previous results"""
+        try:
+            data = params.get("data", {})
+            context = params.get("context", "")
+            operation = params.get("operation", "multiply")
+            
+            values = DataExtractor.find_calculation_values(data, context)
+            
+            return {
+                "success": True,
+                "values": values,
+                "operation": operation,
+                "context": context
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Value extraction failed: {str(e)}"
             }
     
     async def _list_all_tools(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -88,7 +260,8 @@ class SystemAgent:
                     {"name": "list_agents", "description": "List all available agents"},
                     {"name": "list_workflows", "description": "List all available workflows"},
                     {"name": "system_status", "description": "Get system health status"},
-                    {"name": "help", "description": "Show help and capabilities"}
+                    {"name": "help", "description": "Show help and capabilities"},
+                    {"name": "extract_calculation_values", "description": "Extract calculation values from data"}
                 ]
             }
             all_tools.append(system_tools)
@@ -141,8 +314,8 @@ class SystemAgent:
                 "description": "Built-in system agent",
                 "endpoint": "internal://system",
                 "enabled": True,
-                "tool_count": 5,
-                "tools": ["list_tools", "list_agents", "list_workflows", "system_status", "help"],
+                "tool_count": 6,
+                "tools": ["list_tools", "list_agents", "list_workflows", "system_status", "help", "extract_calculation_values"],
                 "health_status": "healthy"
             }
             agent_list.append(system_agent_info)
@@ -289,6 +462,7 @@ class Orchestrator:
         self.active_executions: Dict[str, Any] = {}
         self.max_execution_time = 60  # Reduced to 1 minute for faster feedback
         self.max_node_time = 15  # Reduced to 15 seconds per node
+        self.data_extractor = DataExtractor()
     
     async def execute_dag(self, dag: DAG, trace_id: Optional[str] = None) -> List[StepResult]:
         """Execute DAG with improved error handling and debugging"""
@@ -330,6 +504,9 @@ class Orchestrator:
         completed_groups: Set[str] = set()
         results: Dict[str, StepResult] = {}
         all_results: List[StepResult] = []
+        
+        # Store original query context for parameter resolution
+        query_context = dag.metadata.get("query", "")
         
         # Execute nodes in topological order
         ready_queue = deque()
@@ -376,7 +553,7 @@ class Orchestrator:
             # Execute current batch
             if current_batch:
                 logger.info(f"Executing batch of {len(current_batch)} nodes: {[n.id for n in current_batch]}")
-                batch_results = await self._execute_batch_with_monitoring(current_batch, results, trace_id)
+                batch_results = await self._execute_batch_with_monitoring(current_batch, results, trace_id, query_context)
                 
                 for result in batch_results:
                     if isinstance(result, Exception):
@@ -430,69 +607,118 @@ class Orchestrator:
         
         return all_results
     
-    def _validate_dag(self, dag: DAG) -> List[str]:
-        """Validate DAG structure"""
-        errors = []
+    def _resolve_params(self, params: Dict[str, Any], results: Dict[str, StepResult], query_context: str = "") -> Dict[str, Any]:
+        """Enhanced parameter resolution with smart data extraction"""
+        resolved = {}
         
-        if not dag.nodes:
-            errors.append("DAG has no nodes")
-            return errors
-        
-        node_ids = {node.id for node in dag.nodes}
-        
-        for node in dag.nodes:
-            # Check for invalid dependencies
-            for dep in node.depends_on:
-                if dep not in node_ids and dep not in [n.parallel_group for n in dag.nodes if n.parallel_group]:
-                    errors.append(f"Node {node.id} depends on non-existent node/group: {dep}")
-            
-            # Check agent exists (skip validation for system agent)
-            if node.agent != "system":
-                if not registry.get_agent(node.agent):
-                    errors.append(f"Node {node.id} references unknown agent: {node.agent}")
-        
-        return errors
-    
-    async def _check_agent_availability(self, dag: DAG):
-        """Check if required agents are available"""
-        required_agents = {node.agent for node in dag.nodes}
-        
-        for agent_name in required_agents:
-            if agent_name == "system":
-                logger.info(f"Agent {agent_name} availability: built-in (always available)")
-                continue
+        for key, value in params.items():
+            if isinstance(value, str) and "{{" in value and "}}" in value:
+                # Enhanced template resolution
+                resolved_value = value
                 
-            agent = registry.get_agent(agent_name)
-            if agent:
-                is_available = await self.mcp_client.test_agent_connection(agent)
-                logger.info(f"Agent {agent_name} availability: {is_available}")
+                # Handle results.group_name.combined for parallel groups
+                if "{{results." in resolved_value and ".combined}}" in resolved_value:
+                    import re
+                    match = re.search(r'\{\{results\.(\w+)\.combined\}\}', resolved_value)
+                    if match:
+                        group_name = match.group(1)
+                        combined_data = self._combine_group_results(group_name, results)
+                        resolved_value = resolved_value.replace(f"{{{{results.{group_name}.combined}}}}", combined_data)
+                
+                # Handle smart parameter extraction
+                elif "{{extract:" in resolved_value:
+                    # Smart extraction patterns like {{extract:numbers_from:step_id}}
+                    import re
+                    extract_match = re.search(r'\{\{extract:(\w+)_from:(\w+)\}\}', resolved_value)
+                    if extract_match:
+                        extraction_type = extract_match.group(1)
+                        source_step = extract_match.group(2)
+                        
+                        if source_step in results and results[source_step].success:
+                            source_data = results[source_step].data
+                            
+                            if extraction_type == "numbers":
+                                numbers = self.data_extractor.extract_numbers(source_data)
+                                if numbers:
+                                    resolved_value = str(numbers[0])  # Use first number found
+                            elif extraction_type == "calculation_values":
+                                calc_values = self.data_extractor.find_calculation_values(source_data, query_context)
+                                if key in calc_values:
+                                    resolved_value = str(calc_values[key])
+                                elif key == 'a' and 'quantity' in calc_values:
+                                    resolved_value = str(calc_values['quantity'])
+                                elif key == 'b' and 'price' in calc_values:
+                                    resolved_value = str(calc_values['price'])
+                
+                # Handle individual result references with smart extraction
+                for result_id, result in results.items():
+                    if result.success and result.data:
+                        # Direct data reference
+                        template = f"{{{{results.{result_id}.data}}}}"
+                        if template in resolved_value:
+                            data_str = str(result.data) if not isinstance(result.data, str) else result.data
+                            resolved_value = resolved_value.replace(template, data_str)
+                        
+                        # Smart parameter extraction based on parameter name
+                        smart_template = f"{{{{results.{result_id}.{key}}}}}"
+                        if smart_template in resolved_value:
+                            # Extract specific value based on parameter name
+                            if key in ['a', 'b', 'quantity', 'price', 'principal', 'rate', 'time']:
+                                calc_values = self.data_extractor.find_calculation_values(result.data, query_context)
+                                if key in calc_values:
+                                    resolved_value = str(calc_values[key])
+                                elif key == 'a' and 'quantity' in calc_values:
+                                    resolved_value = str(calc_values['quantity'])
+                                elif key == 'b' and 'price' in calc_values:
+                                    resolved_value = str(calc_values['price'])
+                                else:
+                                    # Fallback to first number
+                                    numbers = self.data_extractor.extract_numbers(result.data)
+                                    if numbers:
+                                        resolved_value = str(numbers[0] if key == 'a' else numbers[1] if len(numbers) > 1 else 1)
+                
+                # Convert to appropriate type
+                try:
+                    if resolved_value != value:  # If template was resolved
+                        # Try to convert to number if it looks like one
+                        if resolved_value.replace('.', '').replace('-', '').isdigit():
+                            resolved[key] = float(resolved_value) if '.' in resolved_value else int(resolved_value)
+                        else:
+                            resolved[key] = resolved_value
+                    else:
+                        resolved[key] = value
+                except (ValueError, TypeError):
+                    resolved[key] = resolved_value
             else:
-                logger.warning(f"Agent {agent_name} not found in registry")
+                resolved[key] = value
+        
+        # Additional smart parameter resolution for calculation tools
+        if not any("{{" in str(v) for v in params.values()):
+            # If no templates were used, try smart extraction for calculator operations
+            if all(key in ['a', 'b'] for key in params.keys()):
+                # This looks like a calculator operation, try to resolve from previous results
+                for result_id, result in results.items():
+                    if result.success and result.data:
+                        calc_values = self.data_extractor.find_calculation_values(result.data, query_context)
+                        for param_key in ['a', 'b']:
+                            if param_key in params and params[param_key] is None:
+                                if param_key in calc_values:
+                                    resolved[param_key] = calc_values[param_key]
+                                elif param_key == 'a' and 'quantity' in calc_values:
+                                    resolved[param_key] = calc_values['quantity']
+                                elif param_key == 'b' and 'price' in calc_values:
+                                    resolved[param_key] = calc_values['price']
+        
+        return resolved
     
-    def _build_dependency_graph(self, nodes: List[Node]) -> Dict[str, List[str]]:
-        """Build dependency graph from nodes"""
-        graph = defaultdict(list)
-        for node in nodes:
-            for dep in node.depends_on:
-                graph[dep].append(node.id)
-        return dict(graph)
-    
-    def _group_parallel_nodes(self, nodes: List[Node]) -> Dict[str, List[Node]]:
-        """Group nodes by parallel group"""
-        groups = defaultdict(list)
-        for node in nodes:
-            if node.parallel_group:
-                groups[node.parallel_group].append(node)
-        return dict(groups)
-    
-    async def _execute_batch_with_monitoring(self, nodes: List[Node], previous_results: Dict[str, StepResult], trace_id: str) -> List[StepResult]:
+    async def _execute_batch_with_monitoring(self, nodes: List[Node], previous_results: Dict[str, StepResult], trace_id: str, query_context: str = "") -> List[StepResult]:
         """Execute a batch of nodes with detailed monitoring"""
         logger.info(f"Starting batch execution with {len(nodes)} nodes")
         
         tasks = []
         for node in nodes:
             task = asyncio.create_task(
-                self._execute_node_with_monitoring(node, previous_results, trace_id),
+                self._execute_node_with_monitoring(node, previous_results, trace_id, query_context),
                 name=f"node_{node.id}"
             )
             tasks.append(task)
@@ -522,8 +748,8 @@ class Orchestrator:
                         results.append(e)
             return results
     
-    async def _execute_node_with_monitoring(self, node: Node, previous_results: Dict[str, StepResult], trace_id: str) -> StepResult:
-        """Execute a single node with detailed monitoring"""
+    async def _execute_node_with_monitoring(self, node: Node, previous_results: Dict[str, StepResult], trace_id: str, query_context: str = "") -> StepResult:
+        """Execute a single node with detailed monitoring and enhanced parameter resolution"""
         start_time = time.time()
         logger.info(f"Starting execution of node {node.id} ({node.agent}.{node.tool})")
         
@@ -531,7 +757,7 @@ class Orchestrator:
             # Handle system agent
             if node.agent == "system":
                 # Resolve parameters with template substitution
-                resolved_params = self._resolve_params(node.params, previous_results)
+                resolved_params = self._resolve_params(node.params, previous_results, query_context)
                 logger.debug(f"Node {node.id} resolved params: {resolved_params}")
                 
                 # Execute system tool
@@ -557,8 +783,8 @@ class Orchestrator:
             if not agent:
                 raise ValueError(f"Agent '{node.agent}' not found in registry")
             
-            # Resolve parameters with template substitution
-            resolved_params = self._resolve_params(node.params, previous_results)
+            # Enhanced parameter resolution with query context
+            resolved_params = self._resolve_params(node.params, previous_results, query_context)
             logger.debug(f"Node {node.id} resolved params: {resolved_params}")
             
             # Execute tool with node-specific timeout
@@ -618,38 +844,60 @@ class Orchestrator:
                 tool=node.tool
             )
     
-    def _resolve_params(self, params: Dict[str, Any], results: Dict[str, StepResult]) -> Dict[str, Any]:
-        """Resolve parameter templates with previous results"""
-        resolved = {}
+    def _validate_dag(self, dag: DAG) -> List[str]:
+        """Validate DAG structure"""
+        errors = []
         
-        for key, value in params.items():
-            if isinstance(value, str) and "{{" in value and "}}" in value:
-                # Simple template resolution
-                resolved_value = value
+        if not dag.nodes:
+            errors.append("DAG has no nodes")
+            return errors
+        
+        node_ids = {node.id for node in dag.nodes}
+        
+        for node in dag.nodes:
+            # Check for invalid dependencies
+            for dep in node.depends_on:
+                if dep not in node_ids and dep not in [n.parallel_group for n in dag.nodes if n.parallel_group]:
+                    errors.append(f"Node {node.id} depends on non-existent node/group: {dep}")
+            
+            # Check agent exists (skip validation for system agent)
+            if node.agent != "system":
+                if not registry.get_agent(node.agent):
+                    errors.append(f"Node {node.id} references unknown agent: {node.agent}")
+        
+        return errors
+    
+    async def _check_agent_availability(self, dag: DAG):
+        """Check if required agents are available"""
+        required_agents = {node.agent for node in dag.nodes}
+        
+        for agent_name in required_agents:
+            if agent_name == "system":
+                logger.info(f"Agent {agent_name} availability: built-in (always available)")
+                continue
                 
-                # Handle results.group_name.combined for parallel groups
-                if "{{results." in resolved_value and ".combined}}" in resolved_value:
-                    # Extract group name
-                    import re
-                    match = re.search(r'\{\{results\.(\w+)\.combined\}\}', resolved_value)
-                    if match:
-                        group_name = match.group(1)
-                        combined_data = self._combine_group_results(group_name, results)
-                        resolved_value = resolved_value.replace(f"{{{{results.{group_name}.combined}}}}", combined_data)
-                
-                # Handle individual result references
-                for result_id, result in results.items():
-                    if result.success and result.data:
-                        template = f"{{{{results.{result_id}.data}}}}"
-                        if template in resolved_value:
-                            data_str = str(result.data) if not isinstance(result.data, str) else result.data
-                            resolved_value = resolved_value.replace(template, data_str)
-                
-                resolved[key] = resolved_value
+            agent = registry.get_agent(agent_name)
+            if agent:
+                is_available = await self.mcp_client.test_agent_connection(agent)
+                logger.info(f"Agent {agent_name} availability: {is_available}")
             else:
-                resolved[key] = value
-        
-        return resolved
+                logger.warning(f"Agent {agent_name} not found in registry")
+    
+    def _build_dependency_graph(self, nodes: List[Node]) -> Dict[str, List[str]]:
+        """Build dependency graph from nodes"""
+        graph = defaultdict(list)
+        for node in nodes:
+            for dep in node.depends_on:
+                graph[dep].append(node.id)
+        return dict(graph)
+    
+    def _group_parallel_nodes(self, nodes: List[Node]) -> Dict[str, List[Node]]:
+        """Group nodes by parallel group"""
+        groups = defaultdict(list)
+        for node in nodes:
+            if node.parallel_group:
+                groups[node.parallel_group].append(node)
+        return dict(groups)
     
     def _combine_group_results(self, group_name: str, results: Dict[str, StepResult]) -> str:
         """Combine results from a parallel group"""
